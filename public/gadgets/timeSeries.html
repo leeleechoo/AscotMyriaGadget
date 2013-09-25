@@ -63,6 +63,7 @@
         </div>
         <div>
             <input onclick="executeTimeSeries();" type="button" value="Submit" style="margin-left: 0px"/>
+	    <input onclick="sendData();" type="button" value="Push to Notebook" style="margin-left: 0px"/>
             <div id="divStatusText" style="display: inline;">
             </div> 
         </div>
@@ -77,7 +78,7 @@
 
 <script type="text/javascript">
 
-var scidbServerAPI = "http://vega.cs.washington.edu:5551/"
+var scidbServerAPI = "http://192.168.56.101:5551/"
   
 // Status Icons
 var ICON_URL_SELECTED = '/images/targetYellow.png';
@@ -95,6 +96,7 @@ var boundSources = [];
 
 var bounds;
 var chart;
+var json_result;
 
 gadget.init = function(callback){
     gadget.update = function(){};
@@ -110,7 +112,7 @@ gadget.init = function(callback){
             bounds.y = Math.round( rectangle['y'] );
             bounds.height = Math.round( rectangle['height'] );
             bounds.width = Math.round( rectangle['width'] );
-            
+	    bounds.name = rectangle['tableName'];
             console.log(rectangle);
     });
     
@@ -135,16 +137,21 @@ var test_result = {
 };
 
 function generateLightCurveQuery() {
-    var genQuery = "select sum(data) from subarray(CCD, 0, " + bounds.y + ", " + bounds.x + " , 24, " + (bounds.y+bounds.height) + ", "  + (bounds.x+bounds.width) + ") group by time";
+    var genQuery = "select sum(data) from between("+bounds.name+", 0, " + bounds.y + ", " + bounds.x + " , 24, " + (bounds.y+bounds.height) + ", "  + (bounds.x+bounds.width) + ") group by time";
     document.getElementById("txtQueryString").value = genQuery;
 }
 
+function sendData(){
+  console.log("sending data from timeseries");
+  //var windowRef = parent.parent;  // notebook window in which ascot is embedded
+  window.postMessage("timeseries", "http://localhost:8080");
+};
+
 function generateCoAddQuery() {
-    var query = document.getElementById("txtQueryString").value;
-    var query = query.split("group by")[0];
+    var query = "between("+bounds.name+", 0, " + bounds.y + ", " + bounds.x + " , 24, " + (bounds.y+bounds.height) + ", "  + (bounds.x+bounds.width) + ")";
     var points = chart.series[0].data;
-    
-    var xpoints = chart.xAxis[0].categories; 
+
+    var xpoints = chart.xAxis[0].categories;
     console.log(xpoints);
     var wheres = new Array();
     for(var i = 0; i < points.length; i++) {
@@ -157,8 +164,8 @@ function generateCoAddQuery() {
     if(wheres.length > 0) {
         query += " where " + wheres.join("or");
     }
-    
-    return query + " group by row, col";
+
+    return query;
 }
  
 function executeTimeSeries() {
@@ -184,7 +191,8 @@ function executeTimeSeries() {
             console.log(result);
             if (result['status'] === 'OK') {
                 showStatus(ICON_URL_SUCCESS, "Time Series Complete.");
-                draw_timeseries(result['data']);
+                json_result = result['data']['data'];
+		draw_timeseries(result['data']);
                 gadget.resize();
             } else {
                 showStatus(ICON_URL_ERROR, "An errored occured while processing the time series.");
