@@ -89,6 +89,13 @@ var gadgets = {
     description: "",
     author: "",
     version: "0.1"
+  },
+  myriaMergerTree: {
+    name: "Myria Merger Tree",
+    fileName: "myriaMergerTree.html",
+    description: "Provide visualization of merger tree.",
+    author: "Lee Lee Choo - chooleelee@gmail.com",
+    version: "0.1"
   }
   /*
   fitsViewer_PDR: { 

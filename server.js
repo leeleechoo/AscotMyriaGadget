@@ -1,7 +1,8 @@
 // NPM dependencies
 var express = require('express');
-var sharejs = require('../ShareJS/').server;
+var sharejs = require('ShareJS').server;
 var faye = require('faye');
+var http = require('http');
 
 // Local Modules
 var DashboardManager = require('./js/server/dashboardsManager');
@@ -50,19 +51,19 @@ app.configure(function(){
   app.set('view options', {layout: false });
   app.use(express.bodyParser());
   app.use(express.static(__dirname + '/js/client'));
-  app.use(express.static(__dirname + '/js/shared'));  
-  app.use(express.static(__dirname + '/public')); 
+  app.use(express.static(__dirname + '/js/shared'));
+  app.use(express.static(__dirname + '/public'));
 });
 
 app.configure('development', function(){
-  app.use(express.errorHandler({ dumpExceptions: true, showStack: true })); 
+  app.use(express.errorHandler({ dumpExceptions: true, showStack: true }));
 });
 
 app.configure('production', function(){
-  app.use(express.errorHandler()); 
+  app.use(express.errorHandler());
 });
 
-dashboardsManager = new DashboardManager(app, app.model); 
+dashboardsManager = new DashboardManager(app, app.model);
 
 app.get('/xhrProxy/:request', function(req, res){
   var options = {
@@ -70,7 +71,7 @@ app.get('/xhrProxy/:request', function(req, res){
     type: "GET",
     success: function(response) { res.send(response); }
   }
-  xhr.ajax(options); 
+  xhr.ajax(options);
 });
 
 app.get('/gadgets/', function(req, res){
@@ -91,7 +92,87 @@ app.post('/dataSet/', function(req, res){
     res.send(JSON.stringify(datasetId));
   }
   DataSetsManager.createDataSet(queryInfo, dataSetCreated);
-});           
+});
+
+app.post('/myria/query', function(req, postResponse){
+  postResponse.header("Transfer-Encoding", "chunked");
+  postResponse.header("Content-Type", "application/json");
+  var request = http.request({
+    hostname: "beijing.cs.washington.edu",
+    port: 8779,
+    path: "/query",
+    method: "post",
+    headers: {
+      "Content-Type": "application/json"
+    }
+  }, function(res) {
+    console.log('STATUS: ' + res.statusCode);
+    console.log('HEADERS: ' + JSON.stringify(res.headers));
+    res.setEncoding('utf8');
+    res.on('data', function(chunk) {
+      postResponse.write(chunk);
+    });
+    res.on('end', function() {
+      postResponse.end();
+    })
+  });
+  request.write(req.body.query);
+  request.end();
+});
+
+app.get('/myria/query', function(req, postResponse){
+  console.log("/query/query-" + req.get('query', ''));
+  var request = http.request({
+    hostname: "beijing.cs.washington.edu",
+    port: 8779,
+    path: "/query/query-" + req.param('query'),
+    method: "get",
+    headers: {
+      "Accept": "*/*"
+    }
+  }, function(res) {
+    console.log('STATUS: ' + res.statusCode);
+    console.log('HEADERS: ' + JSON.stringify(res.headers));
+    for (key in res.headers) {
+      postResponse.header(key, res.headers[key]);
+    }
+    res.setEncoding('utf8');
+    res.on('data', function(chunk) {
+      postResponse.write(chunk);
+    });
+    res.on('end', function() {
+      postResponse.end();
+    })
+  });
+  request.end();
+});
+
+// beijing:8779/dataset/user-leelee/program-astro/relation-specificTimeStepResult/data
+app.get('/myria/data', function(req, postResponse){
+  var request = http.request({
+    hostname: "beijing.cs.washington.edu",
+    port: 8779,
+    path: "/dataset/user-leelee/program-astro/relation-" + req.param('table') + '/data?format=json',
+    method: "get",
+    headers: {
+      "Accept": "*/*"
+    }
+  }, function(res) {
+    console.log('STATUS: ' + res.statusCode);
+    console.log('HEADERS: ' + JSON.stringify(res.headers));
+    for (key in res.headers) {
+      postResponse.header(key, res.headers[key]);
+    }
+    res.setEncoding('utf8');
+    res.on('data', function(chunk) {
+      postResponse.write(chunk);
+    });
+    res.on('end', function() {
+      postResponse.end();
+    })
+  });
+  request.end();
+});
 
 if (!module.parent) {
   app.listen(80);
