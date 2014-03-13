@@ -120,8 +120,62 @@ app.post('/myria/query', function(req, postResponse){
   request.end();
 });
 
-app.get('/myria/query', function(req, postResponse){
+var request = require('request');
+app.post('/myria/mquery', function(req, postResponse) {
+  postResponse.header("Transfer-Encoding", "chunked");
+  postResponse.header("Content-Type", "application/json");
+  var queryString = 'results = select * from SCAN(' + req.param('dataTable') +') as f where f.NowGroup=' +
+      req.param('group') +
+      '; STORE(results, ' + req.param('resultTable') + ');';
+  request({
+      "url":'https://demo.myria.cs.washington.edu/execute',
+      "method": "POST",
+      "rejectUnauthorized": false,
+      "form": {
+          query: queryString,
+          language: "MyriaL"
+        }
+    },
+    function (error, response, body) {
+        if (!error && response.statusCode == 201) {
+            postResponse.write(body);
+            postResponse.end();
+        } else {
+          console.log('Error: ' + error);
+          console.log('Status code' + response.statusCode);
+        }
+    }
+  );
+});
+
+app.get('/myria/mquery', function(req, postResponse){
   console.log("/query/query-" + req.get('query', ''));
+  var request = http.request({
+    hostname: "vega.cs.washington.edu",
+    port: 1776,
+    path: "/query/query-" + req.param('query'),
+    method: "get",
+    headers: {
+      "Accept": "*/*"
+    }
+  }, function(res) {
+    console.log('STATUS: ' + res.statusCode);
+    console.log('HEADERS: ' + JSON.stringify(res.headers));
+    for (key in res.headers) {
+      postResponse.header(key, res.headers[key]);
+    }
+    res.setEncoding('utf8');
+    res.on('data', function(chunk) {
+      postResponse.write(chunk);
+    });
+    res.on('end', function() {
+      postResponse.end();
+    })
+  });
+  request.end();
+});
+
+app.get('/myria/query', function(req, postResponse){
   var request = http.request({
     hostname: "beijing.cs.washington.edu",
     port: 8779,
@@ -153,6 +207,32 @@ app.get('/myria/data', function(req, postResponse){
     hostname: "beijing.cs.washington.edu",
     port: 8779,
     path: "/dataset/user-leelee/program-astro/relation-" + req.param('table') + '/data?format=json',
+    method: "get",
+    headers: {
+      "Accept": "*/*"
+    }
+  }, function(res) {
+    console.log('STATUS: ' + res.statusCode);
+    console.log('HEADERS: ' + JSON.stringify(res.headers));
+    for (key in res.headers) {
+      postResponse.header(key, res.headers[key]);
+    }
+    res.setEncoding('utf8');
+    res.on('data', function(chunk) {
+      postResponse.write(chunk);
+    });
+    res.on('end', function() {
+      postResponse.end();
+    })
+  });
+  request.end();
+});
+
+app.get('/myria/mdata', function(req, postResponse){
+  var request = http.request({
+    hostname: "vega.cs.washington.edu",
+    port: 1776,
+    path: "/dataset/user-public/program-adhoc/relation-" + req.param('table') + '/data?format=json',
     method: "get",
     headers: {
       "Accept": "*/*"

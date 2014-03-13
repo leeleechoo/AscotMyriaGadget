@@ -7,6 +7,7 @@
   <link href="/css/reset.css" rel="stylesheet" type="text/css">
   <link href="/css/text.css" rel="stylesheet" type="text/css"> 
   <link href="/css/widgets.css" rel="stylesheet" type="text/css"> 
+  <link href="/css/mergerTreeStyle.css" rel="stylesheet" type="text/css"> 
   <style type="text/css">
   #queryEditor, #queryButton {
     display: block;
@@ -42,6 +43,10 @@
     height: 960px;
     width: 960px;
   }
+  #mergerTreeResult {
+    height: 1300px;
+    width: 960px;
+  }
   #custom {
     clear: both;
   }
@@ -64,14 +69,48 @@
   #customTableHeader {
     background-color: lightgray;
   }
-  
   #customTableRow:hover{
     background-color: lightyellow;
+  }
+  #svgContent {
+    display: inline-block;
+  }
+  .mergerTreePanel {
+    display: inline-block;
+  }
+  #leftPanel {
+    width: 1200px;
   }
   </style>
 </head>
 <body>
   <div id="content">
+    <div id="mergerTree">
+      <div id="mergerTreeOptions">
+        <label>Group(s): </label>
+        <input id="mergerTreeGroup"></input>
+        <button id="mQueryButton" onclick="tryFormAndSendMergerTreeQuery()">Execute</button>
+      </div>
+      <div id="mergerTreeResult">
+          <div class="subsecHeader">Result</div>
+          <div id="leftPanel"> 
+            <div class="mergerTreePanel">
+              <h3>Mass</h3>
+              <div id="massPanel">
+              </div>
+            </div>
+            <div class="mergerTreePanel">
+              <h3>Particle Count</h3>
+              <div id="particlePanel">
+              </div>
+            </div>
+          </div>
+          <div id="svgContent"> 
+          </div>
+          <div id="mergerTreeResultDisplay">
+          </div>
+      </div>
+    </div>
     <div id="progenitor">
       <div class="sectionHeader">Progenitor Query</div>
       <div id="options">
@@ -108,10 +147,14 @@
 <script src="http://d3js.org/d3.v3.min.js"></script>
 <script src="/util.js" type="text/javascript"></script>
 <script type="text/javascript" src="/wcs.js"></script>
+<script src="http://labratrevenge.com/d3-tip/javascripts/d3.tip.v0.6.3.js"></script>
+<script src="../d3/interaction_collapse.js"></script>
 <script type="text/javascript">
 
 var MYRIA_QUERY_URL = "/myria/query";
 var MYRIA_DATA_URL = "/myria/data";
+var MYRIA_MQUERY_URL = "/myria/mquery";
+var MYRIA_MDATA_URL = "/myria/mdata";
 
 var SNAPSHOTS = [
 'cosmo50cmb.256g2MbwK.00512',
@@ -173,15 +216,19 @@ var bubble = d3.layout.pack()
 .size([diameter, diameter])
 .padding(1.5);
 
-var svg = d3.select("#progenitorResult").append("svg")
+var progenitorResultSvg = d3.select("#progenitorResult").append("svg")
 .attr("width", diameter)
 .attr("height", diameter)
 .attr("class", "bubble");
 
 var queryType = {
   PROGENITOR : 0,
-  CUSTOM: 1
+  CUSTOM: 1,
+  MERGER_TREE_Q1: 2,
+  MERGER_TREE_Q2: 3
 };
+
+var selectedGroup = -1;
 
 var setUp = function() {
 
@@ -208,12 +255,29 @@ var setUp = function() {
     halosDrop.appendChild(haloOption);
   }
   // Append execute button.
+
+  // Hide MergerTreePanel
+  showMergerTreePanel(false);
 };
 
 gadget.init = function(callback){
   callback();
   setUp();
 }
+
+var showMergerTreePanel = function(show) {
+  var panelElements = document.getElementsByClassName('mergerTreePanel');
+  if (show) {
+    for (var i = 0; i < panelElements.length; i++) {
+      panelElements[i].style.display = "";
+    }
+  } else {
+    for (var i = 0; i < panelElements.length; i++) {
+      panelElements[i].style.display = "none";
+    }
+  }
+
+};
 
 var tryExecuteQuery = function() {
   $.post(MYRIA_QUERY_URL, {query: $("#queryEditor").val()}, function(res) {
@@ -247,7 +311,7 @@ var displayResult = function(data) {
     name: "progenitor",
     children: data
   };
-  var node = svg.selectAll(".node")
+  var node = progenitorResultSvg.selectAll(".node")
   .data(bubble.nodes(completeFormat)
     .filter(function(d) { return !d.children; })
     )
@@ -277,19 +341,62 @@ d3.select(self.frameElement).style("height", diameter + "px");
 var tryGetResult = function(queryId, queryTypeEnum) {
   // Keep enquiring for the query status until the status is success.
 
-  $.get(MYRIA_QUERY_URL, {query: queryId}, function(res) {
-    if (res.status != 'SUCCESS') {
-      tryGetResult(queryId, queryTypeEnum);
-    } else {
-        // Then get the result.
-        if (queryTypeEnum == queryType.CUSTOM) {
-          $.get(MYRIA_DATA_URL, {table: 'result2'}, displayResultForCustomQuery, 'json');
-
-        } else if (queryTypeEnum == queryType.PROGENITOR) {
-          $.get(MYRIA_DATA_URL, {table: 'result2'}, displayResult, 'json');
+  switch(queryTypeEnum) {
+    case queryType.MERGER_TREE_Q1:
+      $.get(MYRIA_MQUERY_URL, {query: queryId}, function(res) {
+        if (res.status != 'SUCCESS') {
+          tryGetResult(queryId, queryTypeEnum);
+        } else {
+          var conditions = {
+            group: selectedGroup,
+            dataTable: "Cosmo50Links2",
+            resultTable: "FilteredLinks2"
+          };
+          sendMergerTreeQuery(conditions, queryType.MERGER_TREE_Q2);
         }
-      }
-    });
+      });
+    break;
+    case queryType.MERGER_TREE_Q2:
+      $.get(MYRIA_MQUERY_URL, {query: queryId}, function(res) {
+        if (res.status != 'SUCCESS') {
+          tryGetResult(queryId, queryTypeEnum);
+        } else {
+            // Then get the result.
+            $.get(MYRIA_MDATA_URL, {table: 'FilteredNodes2'}, getSecondMergerTreeQueryResult, 'json');
+        }
+      });
+    break;
+    default:
+      $.get(MYRIA_QUERY_URL, {query: queryId}, function(res) {
+        if (res.status != 'SUCCESS') {
+          tryGetResult(queryId, queryTypeEnum);
+        } else {
+          // Then get the result.
+          if (queryTypeEnum == queryType.CUSTOM) {
+            $.get(MYRIA_DATA_URL, {table: 'result2'}, displayResultForCustomQuery, 'json');
+
+          } else if (queryTypeEnum == queryType.PROGENITOR) {
+            $.get(MYRIA_DATA_URL, {table: 'result2'}, displayResult, 'json');
+          }
+        }
+      });
+  }
+};
+
+
+var getSecondMergerTreeQueryResult = function(data) {
+  $.get(MYRIA_MDATA_URL, {table: 'FilteredLinks2'},
+    displayMergerTreeResult.bind(this, data), 'json');
+}
+
+var displayMergerTreeResult = function(data1, data2) {
+  showMergerTreePanel(true);
+  data2.sort(function(obj1, obj2) {
+    return obj1.CurrentTime - obj2.CurrentTime});
+  data1.sort(function(obj1, obj2) {
+    return obj1.TimeStep - obj2.TimeStep;
+  });
+  displayMergerTree(data2, data1, selectedGroup);
 };
 
 var displayResultForCustomQuery = function(data) {
@@ -327,6 +434,29 @@ var clearPreviousCustomQueryDisplay = function() {
   while (customQueryResultSection.firstChild) {
     customQueryResultSection.removeChild(customQueryResultSection.firstChild);
   }
+};
+
+var sendMergerTreeQuery = function(conditions, queryType) {
+  $.post(MYRIA_MQUERY_URL, conditions, function(res) {
+    // Get the query id.
+    var queryId = res.queryStatus.queryId;
+    console.log('queryId ' + queryId);
+    tryGetResult(queryId, queryType);
+  }, 'json');
+}
+
+var tryFormAndSendMergerTreeQuery = function() {
+  selectedGroup = document.getElementById('mergerTreeGroup').value;
+  // if (!verifyMegerTreeGroupArgument(selectedGroup)) {
+  //   showMergerTreeQueryError();
+  //   return;
+  // }
+  var conditions = {
+    group: selectedGroup,
+    dataTable: "Cosmo50Nodes2",
+    resultTable: "FilteredNodes2"
+  }
+  sendMergerTreeQuery(conditions, queryType.MERGER_TREE_Q1);
 };
 
 var tryFormAndSendQuery = function() {
