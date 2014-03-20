@@ -1,16 +1,4 @@
 var displayMergerTree = function(raw_links, raw_nodes, selectedGroup) {
-    var previousContent = document.getElementById("svgContent");
-    while (previousContent.firstChild) {
-        previousContent.removeChild(previousContent.firstChild);
-    }
-    var massPanelPrevContent = document.getElementById("massPanel");
-    var particlePanelPrevContent = document.getElementById("particlePanel");
-    while (massPanelPrevContent.firstChild) {
-        massPanelPrevContent.removeChild(massPanelPrevContent.firstChild);
-    }
-    while (particlePanelPrevContent.firstChild) {
-        particlePanelPrevContent.removeChild(particlePanelPrevContent.firstChild);
-    }
     var doc = document.documentElement;
     var clientWidth = 960;
     var leftPanelWidth = 350;

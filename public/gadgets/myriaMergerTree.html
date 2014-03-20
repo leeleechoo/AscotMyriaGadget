@@ -81,18 +81,31 @@
   #leftPanel {
     width: 1200px;
   }
+  #error {
+    color: red;
+    margin: 8px;
+  }
+  #resultLoading {
+    background-image: url('../images/ajax-loader.gif');
+    background-repeat: no-repeat;
+    background-position: center;
+    height: 70px;
+    margin: 8px;
+  }
   </style>
 </head>
 <body>
   <div id="content">
     <div id="mergerTree">
       <div id="mergerTreeOptions">
-        <label>Group(s): </label>
+        <label>Group: </label>
         <input id="mergerTreeGroup"></input>
         <button id="mQueryButton" onclick="tryFormAndSendMergerTreeQuery()">Execute</button>
+        <span id="error"></span>
       </div>
       <div id="mergerTreeResult">
           <div class="subsecHeader">Result</div>
+          <div id="resultLoading"></div>
           <div id="leftPanel"> 
             <div class="mergerTreePanel">
               <h3>Mass</h3>
@@ -107,38 +120,6 @@
           </div>
           <div id="svgContent"> 
           </div>
-          <div id="mergerTreeResultDisplay">
-          </div>
-      </div>
-    </div>
-    <div id="progenitor">
-      <div class="sectionHeader">Progenitor Query</div>
-      <div id="options">
-        <div id="timesteps">
-          <div class="selection">
-            <label> Progenitors from  </label>
-            <select id="timestepsDrop" name="timespteps"></select>
-            <label> that contributes to halo(s) </label>
-            <select id="halosDrop" name="halos"></select>
-          </div>
-          <button id="proQueryButton" onclick="tryFormAndSendQuery()">Execute</button>
-        </div>
-        <div id="progenitorResult">
-          <div class="subsecHeader">Result</div>
-        </div>
-      </div>
-    </div>
-    <div id="custom">
-      <div class="sectionHeader">Custom Query</div>
-      <div id="queryArea">
-        <div id="queryHeader">Write your JSON query here</div>
-        <textarea id="queryEditor"></textarea>
-        <button id="queryButton" onclick="tryExecuteQuery()">Execute</button>
-      </div>
-      <div id="outputArea">
-        <div id="outputHeader">Result</div>
-        <hr>
-        <div id="outputContent"></div>
       </div>
     </div>
   </div>
@@ -207,20 +188,6 @@ var GROUPS_OF_INTEREST = [
 502, 503, 506, 511, 512, 515, 523, 526, 528, 533, 536, 537, 543, 545, 550,
 555, 559];
 
-var diameter = 750,
-format = d3.format(",d"),
-color = d3.scale.category20c();
-
-var bubble = d3.layout.pack()
-.sort(null)
-.size([diameter, diameter])
-.padding(1.5);
-
-var progenitorResultSvg = d3.select("#progenitorResult").append("svg")
-.attr("width", diameter)
-.attr("height", diameter)
-.attr("class", "bubble");
-
 var queryType = {
   PROGENITOR : 0,
   CUSTOM: 1,
@@ -231,33 +198,9 @@ var queryType = {
 var selectedGroup = -1;
 
 var setUp = function() {
-
-  // Add check all button.
-
-  // Add uncheck all button.
-  // Get the timestep section to add timestep selection option to users.
-  var timestepsSection = document.getElementById('timestepsDrop');
-  for (var i = 0; i <= 26; i++) {
-    var timestepId = 'timestep' + i;
-    var wrapbox = document.createElement('option');
-    wrapbox.setAttribute('id', timestepId);
-    wrapbox.innerHTML = SNAPSHOTS[i];
-    wrapbox.setAttribute('value', i);
-    timestepsSection.appendChild(wrapbox);
-  }
-  // Populate halos dropbox.
-  var halosDrop = document.getElementById("halosDrop");
-  for (var i = 0; i < GROUPS_OF_INTEREST.length; i++) {
-    var haloOption = document.createElement('option');
-    var halo = GROUPS_OF_INTEREST[i];
-    haloOption.innerHTML = halo;
-    haloOption.setAttribute('value', halo);
-    halosDrop.appendChild(haloOption);
-  }
-  // Append execute button.
-
   // Hide MergerTreePanel
   showMergerTreePanel(false);
+  showLoadingIcon(false);
 };
 
 gadget.init = function(callback){
@@ -279,68 +222,8 @@ var showMergerTreePanel = function(show) {
 
 };
 
-var tryExecuteQuery = function() {
-  $.post(MYRIA_QUERY_URL, {query: $("#queryEditor").val()}, function(res) {
-    var queryId = res.query_id;
-    var status = res.status;
-    tryGetResult(queryId, queryType.CUSTOM);
-  }, 'json'); 
-};
-
-var clearPreviousDisplay = function() {
-  var svg = document.getElementsByTagName('svg')[0];
-  while (svg.firstChild) {
-    svg.removeChild(svg.firstChild);
-  }
-};
-
-var displayResult = function(data) {
-  clearPreviousDisplay();
-
-  data = data.map(function(node){
-    return {
-      packageName: node.grp,
-      className: node.grp,
-      value: node.tot_mass,
-      time: node.time,
-      grp: node.grp,
-      pgtr: node.pgtr
-    }
-  });
-  var completeFormat = {
-    name: "progenitor",
-    children: data
-  };
-  var node = progenitorResultSvg.selectAll(".node")
-  .data(bubble.nodes(completeFormat)
-    .filter(function(d) { return !d.children; })
-    )
-  .enter().append("g")
-  .attr("class", "node")
-  .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
-
-  node.append("title")
-  .text(function(d) {
-    return d.value; });
-
-  node.append("circle")
-  .attr("r", function(d) { return d.r; })
-  .style("fill", function(d) { return color(d.grp); });
-
-
-  node.append("text")
-  .attr("dy", ".3em")
-  .style("text-anchor", "middle")
-  .text(function(d) {
-    return (d.pgtr + '').substring(0, d.r / 3);
-  });
-};
-
-d3.select(self.frameElement).style("height", diameter + "px");
-
 var tryGetResult = function(queryId, queryTypeEnum) {
   // Keep enquiring for the query status until the status is success.
-
   switch(queryTypeEnum) {
     case queryType.MERGER_TREE_Q1:
       $.get(MYRIA_MQUERY_URL, {query: queryId}, function(res) {
@@ -367,22 +250,14 @@ var tryGetResult = function(queryId, queryTypeEnum) {
       });
     break;
     default:
-      $.get(MYRIA_QUERY_URL, {query: queryId}, function(res) {
-        if (res.status != 'SUCCESS') {
-          tryGetResult(queryId, queryTypeEnum);
-        } else {
-          // Then get the result.
-          if (queryTypeEnum == queryType.CUSTOM) {
-            $.get(MYRIA_DATA_URL, {table: 'result2'}, displayResultForCustomQuery, 'json');
-
-          } else if (queryTypeEnum == queryType.PROGENITOR) {
-            $.get(MYRIA_DATA_URL, {table: 'result2'}, displayResult, 'json');
-          }
-        }
-      });
+      displayErrorMessage('Invalid query type.');
   }
 };
 
+var displayErrorMessage = function(message) {
+  var errorSection = document.getElementById('error');
+  errorSection.innerHTML = message;
+};
 
 var getSecondMergerTreeQueryResult = function(data) {
   $.get(MYRIA_MDATA_URL, {table: 'FilteredLinks2'},
@@ -390,6 +265,11 @@ var getSecondMergerTreeQueryResult = function(data) {
 }
 
 var displayMergerTreeResult = function(data1, data2) {
+  showLoadingIcon(false);
+  if (data1.length == 0 || data2.length == 0) {
+    displayErrorMessage('No result for the selected group: ' + selectedGroup);
+    return;
+  }
   showMergerTreePanel(true);
   data2.sort(function(obj1, obj2) {
     return obj1.CurrentTime - obj2.CurrentTime});
@@ -399,58 +279,26 @@ var displayMergerTreeResult = function(data1, data2) {
   displayMergerTree(data2, data1, selectedGroup);
 };
 
-var displayResultForCustomQuery = function(data) {
-  clearPreviousCustomQueryDisplay();
-  var customQueryResultSection = document.getElementById('outputContent');
-  if (data.length == 0) {
-    return;
-  }
-  var table = document.createElement('table');
-  table.setAttribute('border', '1');
-  var firstRow = data[0];
-  var header = document.createElement('tr');
-  header.setAttribute('id', 'customTableHeader');
-  for (key in firstRow) {
-    var th = document.createElement('th');
-    th.innerHTML = key;
-    header.appendChild(th);
-  }
-  table.appendChild(header);
-  for (var i = 0; i < data.length; i++) {
-    var row = document.createElement('tr');
-    row.setAttribute('class', 'customTableRow');
-    for (key in data[i]) {
-      var td = document.createElement('td');
-      td.innerHTML = data[i][key];
-      row.appendChild(td);
-    }
-    table.appendChild(row);
-  }
-  customQueryResultSection.appendChild(table);
-};
-
-var clearPreviousCustomQueryDisplay = function() {
-  var customQueryResultSection = document.getElementById('outputContent');
-  while (customQueryResultSection.firstChild) {
-    customQueryResultSection.removeChild(customQueryResultSection.firstChild);
-  }
-};
-
 var sendMergerTreeQuery = function(conditions, queryType) {
   $.post(MYRIA_MQUERY_URL, conditions, function(res) {
     // Get the query id.
-    var queryId = res.queryStatus.queryId;
+    var queryId = res.queryId;
     console.log('queryId ' + queryId);
     tryGetResult(queryId, queryType);
   }, 'json');
 }
 
 var tryFormAndSendMergerTreeQuery = function() {
+  displayErrorMessage('');
+  clearPreviousMergerTreeDisplay();
+  showMergerTreePanel(false);
   selectedGroup = document.getElementById('mergerTreeGroup').value;
-  // if (!verifyMegerTreeGroupArgument(selectedGroup)) {
-  //   showMergerTreeQueryError();
-  //   return;
-  // }
+  var intRegex = /^\d+$/;
+  if (!intRegex.test(selectedGroup)) {
+    displayErrorMessage('Invalid group number.');
+    return;
+  }
+  showLoadingIcon(true);
   var conditions = {
     group: selectedGroup,
     dataTable: "Cosmo50Nodes2",
@@ -459,59 +307,28 @@ var tryFormAndSendMergerTreeQuery = function() {
   sendMergerTreeQuery(conditions, queryType.MERGER_TREE_Q1);
 };
 
-var tryFormAndSendQuery = function() {
-  var conditions = 'potpro2_time=' + document.getElementById('timestepsDrop').value;
-  var grpValue = document.getElementById('halosDrop').value;
-  if (grpValue != 'All') {
-    conditions += ' and potpro2_grp=' + grpValue;
+var clearPreviousMergerTreeDisplay = function() {
+  var previousContent = document.getElementById("svgContent");
+  while (previousContent.firstChild) {
+      previousContent.removeChild(previousContent.firstChild);
   }
-  var queryString = 
-  {
-    "fragments": [
-    {
-      "operators": [
-      {
-        "op_name": "Scan",
-        "op_type": "DbQueryScan",
-        "schema": {
-          "column_names": [
-          "time",
-          "grp",
-          "pgtr",
-          "tot_mass"
-          ],
-          "column_types": [
-          "INT_TYPE",
-          "INT_TYPE",
-          "INT_TYPE",
-          "FLOAT_TYPE"
-          ]
-        },
-        "sql": "SELECT * FROM [leelee#astro#progenitorallsplit2] WHERE " + conditions
-      },
-      {
-        "arg_child":"Scan",
-        "arg_overwrite_table":true,
-        "op_name":"Insert",
-        "op_type":"DbInsert",
-        "relation_key":{
-          "program_name":"astro",
-          "relation_name":"result2",
-          "user_name":"leelee"
-        }
-      }
-      ]
-    }
-    ],
-    "logical_ra": "result holds the temp result",
-    "raw_datalog": "blah."
-  };
-  $.post(MYRIA_QUERY_URL, {query: JSON.stringify(queryString)}, function(res) {
-    // Get the query id.
-    var queryId = res.query_id;
-    var status = res.status;
-    tryGetResult(queryId, queryType.PROGENITOR);
-  }, 'json');
+  var massPanelPrevContent = document.getElementById("massPanel");
+  var particlePanelPrevContent = document.getElementById("particlePanel");
+  while (massPanelPrevContent.firstChild) {
+      massPanelPrevContent.removeChild(massPanelPrevContent.firstChild);
+  }
+  while (particlePanelPrevContent.firstChild) {
+      particlePanelPrevContent.removeChild(particlePanelPrevContent.firstChild);
+  }
+};
+
+var showLoadingIcon = function(show) {
+  var loadingIcon = document.getElementById('resultLoading');
+  if (show) {
+      loadingIcon.style.display = "";
+  } else {
+    loadingIcon.style.display = "none";
+  }
 };
 </script>
 </html>
