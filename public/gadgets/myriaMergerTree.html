@@ -47,7 +47,7 @@
     <div id="mergerTree">
       <div id="mergerTreeOptions">
         <label>Group: </label>
-        <input id="mergerTreeGroup"></input>
+        <input id="mergerTreeGroup" onkeydown="if (event.keyCode == 13) document.getElementById('mQueryButton').click()"></input>
         <button id="mQueryButton" onclick="tryFormAndSendMergerTreeQuery()">Execute</button>
         <span id="error"></span>
       </div>
