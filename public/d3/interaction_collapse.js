@@ -404,7 +404,7 @@ var displayMergerTree = function(raw_links, raw_nodes, selectedGroup) {
         .attr("x", function(d) { return -massScale(d.HaloMass)-5; })
         .attr("dy", ".35em")
         .attr("text-anchor", function(d) { return d.children || d._children ? "end" : "start"; })
-        .text(function(d) { return d.HaloID; })
+        .text('')
         .style("fill-opacity", 1e-6);
 
         // Transition nodes to their new position.
