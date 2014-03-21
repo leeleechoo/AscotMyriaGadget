@@ -1,15 +1,32 @@
 {
-  "name"          : "dashboard",
-  "description"   : "Create dashboards with gadgets on node.js",
-  "url"           : "https://github.com/dmarcos/dashboardjs",
-  "keywords"      : ["gadgets", "server", "client", "dashboard"],
-  "author"        : "Diego Marcos <diego.marcos@gmail.com>",
-  "contributors"  : [],
-  "dependencies"  : {
-    "underscore"  : ">=1.1.2",
-    "backbone"	  : ">=0.5.1"
+  "name": "dashboard",
+  "description": "Create dashboards with gadgets on node.js",
+  "url": "https://github.com/dmarcos/dashboardjs",
+  "keywords": [
+    "gadgets",
+    "server",
+    "client",
+    "dashboard"
+  ],
+  "author": "Diego Marcos <diego.marcos@gmail.com>",
+  "contributors": [],
+  "dependencies": {
+    "underscore": "~1.5.2",
+    "backbone": ">=0.5.1",
+    "hat": "0.0.3",
+    "async": "~0.2.9",
+    "coffee-script": "~1.2.0",
+    "express": "~2.5.9",
+    "socket.io": "~0.9.16",
+    "faye": "~1.0.1",
+    "xml2js": "~0.4.1",
+    "connect": "~1.8.6",
+    "mysql": "~0.9.6",
+    "browserchannel": "~1.0.8",
+    "socket.io-client": "~0.9.16",
+    "share": "git://github.com/ASCOT/ShareJS.git"
   },
-  "lib"           : ".",
-  "main"          : "server.js",
-  "version"       : "0.0.2"
+  "lib": ".",
+  "main": "server.js",
+  "version": "0.0.2"
 }

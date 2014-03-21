@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Myria Merger Tree</title>
+  <!-- ASCOT Basic Style Sheets -->
+  <link href="/css/reset.css" rel="stylesheet" type="text/css">
+  <link href="/css/text.css" rel="stylesheet" type="text/css"> 
+  <link href="/css/widgets.css" rel="stylesheet" type="text/css"> 
+  <link href="/css/mergerTreeStyle.css" rel="stylesheet" type="text/css"> 
+  <style type="text/css">
+  .sectionHeader {
+    font-size: 24px;
+    font-weight: bold;
+  }
+  .subsecHeader {
+    font-size: 18px;
+  }
+  #mergerTreeResult {
+    height: 1300px;
+    width: 960px;
+  }
+  #svgContent {
+    display: inline-block;
+  }
+  .mergerTreePanel {
+    display: inline-block;
+  }
+  #leftPanel {
+    width: 1200px;
+  }
+  #error {
+    color: red;
+    margin: 8px;
+  }
+  #resultLoading {
+    background-image: url('../images/ajax-loader.gif');
+    background-repeat: no-repeat;
+    background-position: center;
+    height: 70px;
+    margin: 8px;
+  }
+  </style>
+</head>
+<body>
+  <div id="content">
+    <div id="mergerTree">
+      <div id="mergerTreeOptions">
+        <label>Group: </label>
+        <input id="mergerTreeGroup"></input>
+        <button id="mQueryButton" onclick="tryFormAndSendMergerTreeQuery()">Execute</button>
+        <span id="error"></span>
+      </div>
+      <div id="mergerTreeResult">
+          <div class="subsecHeader">Result</div>
+          <div id="resultLoading"></div>
+          <div id="leftPanel"> 
+            <div class="mergerTreePanel">
+              <h3>Mass</h3>
+              <div id="massPanel">
+              </div>
+            </div>
+            <div class="mergerTreePanel">
+              <h3>Particle Count</h3>
+              <div id="particlePanel">
+              </div>
+            </div>
+          </div>
+          <div id="svgContent"> 
+          </div>
+      </div>
+    </div>
+  </div>
+</body>
+<script src="http://code.jquery.com/jquery-1.8.1.min.js" type="text/javascript"></script>
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script src="/util.js" type="text/javascript"></script>
+<script type="text/javascript" src="/wcs.js"></script>
+<script src="http://labratrevenge.com/d3-tip/javascripts/d3.tip.v0.6.3.js"></script>
+<script src="../d3/interaction_collapse.js"></script>
+<script type="text/javascript">
+
+var MYRIA_QUERY_URL = "/myria/query";
+var MYRIA_DATA_URL = "/myria/data";
+var MYRIA_MQUERY_URL = "/myria/mquery";
+var MYRIA_MDATA_URL = "/myria/mdata";
+
+var queryType = {
+  MERGER_TREE_Q1: 1,
+  MERGER_TREE_Q2: 2
+};
+
+var selectedGroup = -1;
+
+var setUp = function() {
+  // Hide MergerTreePanel
+  showMergerTreePanel(false);
+  showLoadingIcon(false);
+};
+
+gadget.init = function(callback){
+  callback();
+  setUp();
+}
+
+var showMergerTreePanel = function(show) {
+  var panelElements = document.getElementsByClassName('mergerTreePanel');
+  if (show) {
+    for (var i = 0; i < panelElements.length; i++) {
+      panelElements[i].style.display = "";
+    }
+  } else {
+    for (var i = 0; i < panelElements.length; i++) {
+      panelElements[i].style.display = "none";
+    }
+  }
+
+};
+
+var tryGetResult = function(queryId, queryTypeEnum) {
+  // Keep enquiring for the query status until the status is success.
+  switch(queryTypeEnum) {
+    case queryType.MERGER_TREE_Q1:
+      $.get(MYRIA_MQUERY_URL, {query: queryId}, function(res) {
+        if (res.status != 'SUCCESS') {
+          tryGetResult(queryId, queryTypeEnum);
+        } else {
+          var conditions = {
+            group: selectedGroup,
+            dataTable: "Cosmo50Links2",
+            resultTable: "FilteredLinks2"
+          };
+          sendMergerTreeQuery(conditions, queryType.MERGER_TREE_Q2);
+        }
+      });
+    break;
+    case queryType.MERGER_TREE_Q2:
+      $.get(MYRIA_MQUERY_URL, {query: queryId}, function(res) {
+        if (res.status != 'SUCCESS') {
+          tryGetResult(queryId, queryTypeEnum);
+        } else {
+            // Then get the result.
+            $.get(MYRIA_MDATA_URL, {table: 'FilteredNodes2'}, getSecondMergerTreeQueryResult, 'json');
+        }
+      });
+    break;
+    default:
+      displayErrorMessage('Invalid query type.');
+  }
+};
+
+var displayErrorMessage = function(message) {
+  var errorSection = document.getElementById('error');
+  errorSection.innerHTML = message;
+};
+
+var getSecondMergerTreeQueryResult = function(data) {
+  $.get(MYRIA_MDATA_URL, {table: 'FilteredLinks2'},
+    displayMergerTreeResult.bind(this, data), 'json');
+}
+
+var displayMergerTreeResult = function(data1, data2) {
+  showLoadingIcon(false);
+  if (data1.length == 0 || data2.length == 0) {
+    displayErrorMessage('No result for the selected group: ' + selectedGroup);
+    return;
+  }
+  showMergerTreePanel(true);
+  data2.sort(function(obj1, obj2) {
+    return obj1.CurrentTime - obj2.CurrentTime});
+  data1.sort(function(obj1, obj2) {
+    return obj1.TimeStep - obj2.TimeStep;
+  });
+  displayMergerTree(data2, data1, selectedGroup);
+};
+
+var sendMergerTreeQuery = function(conditions, queryType) {
+  $.post(MYRIA_MQUERY_URL, conditions, function(res) {
+    // Get the query id.
+    if (res.error) {
+      displayErrorMessage('Something went wrong, please try again.');
+      return;
+    }
+    var queryId = res.queryId;
+    console.log('queryId ' + queryId);
+    tryGetResult(queryId, queryType);
+  }, 'json');
+}
+
+var tryFormAndSendMergerTreeQuery = function() {
+  displayErrorMessage('');
+  clearPreviousMergerTreeDisplay();
+  showMergerTreePanel(false);
+  selectedGroup = document.getElementById('mergerTreeGroup').value;
+  var intRegex = /^\d+$/;
+  if (!intRegex.test(selectedGroup)) {
+    displayErrorMessage('Invalid group number.');
+    return;
+  }
+  showLoadingIcon(true);
+  var conditions = {
+    group: selectedGroup,
+    dataTable: "Cosmo50Nodes2",
+    resultTable: "FilteredNodes2"
+  }
+  sendMergerTreeQuery(conditions, queryType.MERGER_TREE_Q1);
+};
+
+var clearPreviousMergerTreeDisplay = function() {
+  var previousContent = document.getElementById("svgContent");
+  while (previousContent.firstChild) {
+      previousContent.removeChild(previousContent.firstChild);
+  }
+  var massPanelPrevContent = document.getElementById("massPanel");
+  var particlePanelPrevContent = document.getElementById("particlePanel");
+  while (massPanelPrevContent.firstChild) {
+      massPanelPrevContent.removeChild(massPanelPrevContent.firstChild);
+  }
+  while (particlePanelPrevContent.firstChild) {
+      particlePanelPrevContent.removeChild(particlePanelPrevContent.firstChild);
+  }
+};
+
+var showLoadingIcon = function(show) {
+  var loadingIcon = document.getElementById('resultLoading');
+  if (show) {
+      loadingIcon.style.display = "";
+  } else {
+    loadingIcon.style.display = "none";
+  }
+};
+</script>
+</html>
