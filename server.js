@@ -1,6 +1,6 @@
 // NPM dependencies
 var express = require('express');
-var sharejs = require('ShareJS').server;
+var sharejs = require('./ShareJS').server;
 var faye = require('faye');
 var http = require('http');
 
