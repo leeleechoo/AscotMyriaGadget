@@ -9,37 +9,22 @@
   <link href="/css/widgets.css" rel="stylesheet" type="text/css"> 
   <link href="/css/mergerTreeStyle.css" rel="stylesheet" type="text/css"> 
   <style type="text/css">
-  .sectionHeader {
-    font-size: 24px;
-    font-weight: bold;
-  }
-  .subsecHeader {
-    font-size: 18px;
-  }
-  #mergerTreeResult {
-    height: 1300px;
-    width: 960px;
-  }
-  #svgContent {
-    display: inline-block;
-  }
-  .mergerTreePanel {
-    display: inline-block;
-  }
-  #leftPanel {
-    width: 1200px;
-  }
-  #error {
-    color: red;
-    margin: 8px;
-  }
-  #resultLoading {
-    background-image: url('../images/ajax-loader.gif');
-    background-repeat: no-repeat;
-    background-position: center;
-    height: 70px;
-    margin: 8px;
-  }
+    #mergerTreeResult {
+      /*height: 1300px;
+      width: 960px;*/
+      display:block;
+    }
+    #error {
+      color: red;
+      margin: 8px;
+    }
+    #resultLoading {
+      background-image: url('../images/ajax-loader.gif');
+      background-repeat: no-repeat;
+      background-position: center;
+      height: 70px;
+      margin: 8px;
+    }
   </style>
 </head>
 <body>
@@ -51,52 +36,129 @@
         <button id="mQueryButton" onclick="tryFormAndSendMergerTreeQuery()">Execute</button>
         <span id="error"></span>
       </div>
+      <div id="resultLoading"></div>
       <div id="mergerTreeResult">
-          <div class="subsecHeader">Result</div>
-          <div id="resultLoading"></div>
-          <div id="leftPanel"> 
-            <div class="mergerTreePanel">
-              <h3>Mass</h3>
-              <div id="massPanel">
+        <!-- <div class="subsecHeader">Result</div> -->
+        <!-- <div id="resultLoading"></div> -->
+        <table style="border-spacing: 0.5px;">
+          <tr>
+            <td>
+              <div id="sliderContainer">
+                <div id="similarHalo">Similar Halos</div>
+                <div id="sliderContent"></div>
               </div>
-            </div>
-            <div class="mergerTreePanel">
-              <h3>Particle Count</h3>
-              <div id="particlePanel">
-              </div>
-            </div>
-          </div>
-          <div id="svgContent"> 
-          </div>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <table id="toptable">
+                <tr>
+                  <td >
+                    <div id="topContainer" style="display:inline;float:left"> 
+                      <button class="button" id="resetButton" onclick='resetTree()'>Reset View</button>
+                      <form style="display:inline"><input class="checked" id="checkedRemoveGraphs" type="checkbox" onclick="toggleGraphs()"> Remove Graphs </form>
+                      <form style="display:inline"><input class="checked" id="checkedRemoveTooltips" type="checkbox" onclick="toggleTooltips()"> Remove Tooltips </form>
+                      <!-- <form style="display:inline"><input class="checked" id="checkedLuminosity" type="checkbox" onclick="toggleLuminosity()"> Luminosity View </form> -->
+                    </div>
+                  </td>
+                  <td >
+                    <div id="nodeLegend" style="display:inline; float:right; margin-bottom:-7px;"> 
+                      <img src="./../images/mergerTree/Legend.jpg"  style="float:right;" alt="Node Legend" width="45%" height="20%">
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <div id="svgContent" style="display:inline-block;">
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <div id="panelContent" style="display:inline-block"> 
+                  <table id="graphLabelTable">  
+                    <tr style="padding: 0px;">          
+                      <td width="33%">
+                        <div id="legend" style="text-align:left; padding: 0px;"></div>
+                      </td>
+                      <td width="33%">
+                        <div style="text-align:center; margin: -9px auto auto;" id="textInfo">Drag your mouse over the graphs below to highlight specific halos</div>  
+                      </td>
+                      <td width="33%">
+                        <div id="haloTextSelected" style="text-align:right; margin: -9px auto auto;"><b>0 Halos Selected</b></div>
+                      </td>
+                    </tr>
+
+                  </table>
+
+                  <table id="table">
+                    <tr>
+                      <td>
+                        <table id="massInformation">
+                          <tr>
+                            <td width="60%"> <div id="massPanel"> </div> </td>
+                            <td width="40%"> 
+                              <div id="massTextBoxes" style = "width:125px; text-align:right;">
+                                <form onkeypress="return event.keyCode != 13;" >min: <input id="textboxMinMass" type="text" value="0"/> </form>
+                                <form onkeypress="return event.keyCode != 13;" >max: <input id="textboxMaxMass" type="text" value="0"/> </form>
+                                <div id="buttonMass"><button class="button">Update Interval</button> </div>
+                              </div>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                      <td>
+                        <table id="particleInformation">
+                          <tr>
+                            <td width="60%"><div id="particlePanel"> </div></td> 
+                            <td width="40%"> 
+                              <div id="particleTextBoxes" style="width:125px; text-align:right;"> 
+                                <form onkeypress="return event.keyCode != 13;">min: <input id="textboxMinParticle" type="text" value="0"/> </form>
+                                <form onkeypress="return event.keyCode != 13;">max: <input id="textboxMaxParticle" type="text" value="0" /> </form>
+                                <div id="buttonParticle"><button class="button">Update Interval</button></div>
+
+                              </div>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+                </div>
+              </td>
+            </tr>
+          </table>
+        </div>
       </div>
     </div>
-  </div>
-</body>
-<script src="http://code.jquery.com/jquery-1.8.1.min.js" type="text/javascript"></script>
-<script src="http://d3js.org/d3.v3.min.js"></script>
-<script src="/util.js" type="text/javascript"></script>
-<script type="text/javascript" src="/wcs.js"></script>
-<script src="http://labratrevenge.com/d3-tip/javascripts/d3.tip.v0.6.3.js"></script>
-<script src="../d3/interaction_collapse.js"></script>
-<script type="text/javascript">
+  </body>
+  <script src="http://code.jquery.com/jquery-1.8.1.min.js" type="text/javascript"></script>
+  <script src="http://d3js.org/d3.v3.min.js"></script>
+  <script src="/util.js" type="text/javascript"></script>
+  <script type="text/javascript" src="/wcs.js"></script>
+  <script src="http://labratrevenge.com/d3-tip/javascripts/d3.tip.v0.6.3.js"></script>
+  <script src="../d3/interaction_collapse.js"></script>
+  <script type="text/javascript">
 
-var MYRIA_QUERY_URL = "/myria/query";
-var MYRIA_DATA_URL = "/myria/data";
-var MYRIA_MQUERY_URL = "/myria/mquery";
-var MYRIA_MDATA_URL = "/myria/mdata";
+    var MYRIA_QUERY_URL = "/myria/query";
+    var MYRIA_DATA_URL = "/myria/data";
+    var MYRIA_MQUERY_URL = "/myria/mquery";
+    var MYRIA_MDATA_URL = "/myria/mdata";
 
-var queryType = {
-  MERGER_TREE_Q1: 1,
-  MERGER_TREE_Q2: 2
-};
+    var queryType = {
+      MERGER_TREE_Q1: 1,
+      MERGER_TREE_Q2: 2
+    };
 
-var selectedGroup = -1;
+    var selectedGroup = -1;
 
-var setUp = function() {
-  // Hide MergerTreePanel
-  showMergerTreePanel(false);
-  showLoadingIcon(false);
-};
+    var setUp = function() {
+      // Hide MergerTreePanel
+      showMergerTreePanel(false);
+      showLoadingIcon(false);
+    };
 
 gadget.init = function(callback){
   callback();
@@ -118,35 +180,35 @@ var showMergerTreePanel = function(show) {
 };
 
 var tryGetResult = function(queryId, queryTypeEnum) {
-  // Keep enquiring for the query status until the status is success.
-  switch(queryTypeEnum) {
-    case queryType.MERGER_TREE_Q1:
-      $.get(MYRIA_MQUERY_URL, {query: queryId}, function(res) {
-        if (res.status != 'SUCCESS') {
-          tryGetResult(queryId, queryTypeEnum);
-        } else {
-          var conditions = {
-            group: selectedGroup,
-            dataTable: "Cosmo50Links2",
-            resultTable: "FilteredLinks2"
-          };
-          sendMergerTreeQuery(conditions, queryType.MERGER_TREE_Q2);
-        }
-      });
-    break;
-    case queryType.MERGER_TREE_Q2:
-      $.get(MYRIA_MQUERY_URL, {query: queryId}, function(res) {
-        if (res.status != 'SUCCESS') {
-          tryGetResult(queryId, queryTypeEnum);
-        } else {
-            // Then get the result.
-            $.get(MYRIA_MDATA_URL, {table: 'FilteredNodes2'}, getSecondMergerTreeQueryResult, 'json');
-        }
-      });
-    break;
-    default:
-      displayErrorMessage('Invalid query type.');
-  }
+// Keep enquiring for the query status until the status is success.
+switch(queryTypeEnum) {
+  case queryType.MERGER_TREE_Q1:
+  $.get(MYRIA_MQUERY_URL, {query: queryId}, function(res) {
+    if (res.status != 'SUCCESS') {
+      tryGetResult(queryId, queryTypeEnum);
+    } else {
+      var conditions = {
+        group: selectedGroup,
+        dataTable: "Cosmo50Links2",
+        resultTable: "FilteredLinks2"
+      };
+      sendMergerTreeQuery(conditions, queryType.MERGER_TREE_Q2);
+    }
+  });
+  break;
+  case queryType.MERGER_TREE_Q2:
+  $.get(MYRIA_MQUERY_URL, {query: queryId}, function(res) {
+    if (res.status != 'SUCCESS') {
+      tryGetResult(queryId, queryTypeEnum);
+    } else {
+      // Then get the result.
+      $.get(MYRIA_MDATA_URL, {table: 'FilteredNodes2'}, getSecondMergerTreeQueryResult, 'json');
+    }
+  });
+  break;
+  default:
+  displayErrorMessage('Invalid query type.');
+}
 };
 
 var displayErrorMessage = function(message) {
@@ -184,7 +246,7 @@ var sendMergerTreeQuery = function(conditions, queryType) {
     var queryId = res.queryId;
     console.log('queryId ' + queryId);
     tryGetResult(queryId, queryType);
-  }, 'json');
+    }, 'json');
 }
 
 var tryFormAndSendMergerTreeQuery = function() {
@@ -209,22 +271,22 @@ var tryFormAndSendMergerTreeQuery = function() {
 var clearPreviousMergerTreeDisplay = function() {
   var previousContent = document.getElementById("svgContent");
   while (previousContent.firstChild) {
-      previousContent.removeChild(previousContent.firstChild);
+    previousContent.removeChild(previousContent.firstChild);
   }
   var massPanelPrevContent = document.getElementById("massPanel");
   var particlePanelPrevContent = document.getElementById("particlePanel");
   while (massPanelPrevContent.firstChild) {
-      massPanelPrevContent.removeChild(massPanelPrevContent.firstChild);
+    massPanelPrevContent.removeChild(massPanelPrevContent.firstChild);
   }
   while (particlePanelPrevContent.firstChild) {
-      particlePanelPrevContent.removeChild(particlePanelPrevContent.firstChild);
+    particlePanelPrevContent.removeChild(particlePanelPrevContent.firstChild);
   }
 };
 
 var showLoadingIcon = function(show) {
   var loadingIcon = document.getElementById('resultLoading');
   if (show) {
-      loadingIcon.style.display = "";
+    loadingIcon.style.display = "";
   } else {
     loadingIcon.style.display = "none";
   }

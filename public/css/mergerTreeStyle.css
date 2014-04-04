@@ -1,11 +1,6 @@
+/*style for the main tree visualization*/
 .node {
   cursor: pointer;
-}
-
-.node circle {
-  fill: #fff;
-  stroke: steelblue;
-  stroke-width: 3px;
 }
 
 .node text {
@@ -13,118 +8,223 @@
   font-family: arial;
 }
 
+path.children {
+  fill: #DDDDDD;
+}
+
 .link {
   fill: none;
-  stroke: #ccc;
+  stroke: #DDDDDD;
+  stroke-opacity: 0.7;
   stroke-width: 2px;
 }
 
-.axis {
-  stroke: #ddd;
+.timeaxisline {
+  stroke: #FFFFFF;
+  stroke-opacity: 0.2;
   stroke-width: 1px;
 }
 
-.axislabel {
-  font-size: 16px;
+.timeaxislabel {
+  font-size: 14px;
   font-family: arial;
+  fill: #DDDDDD;
+}
+
+tr, td {
+  vertical-align: top;
 }
 
 div {
-    margin: 0;
-    border: 0;
-    padding: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+rect {
+  stroke : none;
+  stroke-width: 1;
+  fill: #111111;
+}
+
+#topContainer {
+  font-family:arial;
+  font-size:15px;
 }
 
 #svgContent {
-     align:center;
+  align: center;
 }
 
-#topbarSelectHalo
-{
-    text-align:center;
-	  font-size: 18px;
-    font-family:arial;
-}
-
-#leftPanel {
-    background-color:white;
-	  font-size: 18px;
-    font-family:Arial;
+#panelContent {
+  background-color: white;
+  font-size: 13px;
+  font-family: arial;
 }
 
 #header{
-    width:100%;
-    background:white;
-    border:0px;
-    border-color:gray;
-    border-style:solid;
-  	text-align: center;
-  	font-size: 40px;
-    font-family:Arial;
-
+  background: white;
+  border: 0px;
+  border-color: gray;
+  border-style: solid;
+  margin: 1px;
+  text-align: center;
+  font-size: 30px;
+  font-weight: bold;
+  font-family: arial;
 }
 
 .d3-tip {
   line-height: 1;
-  font-weight: bold;
-  padding: 12px;
-  background: rgba(0, 0, 0, 0.8);
-  color: #fff;
-  border-radius: 2px;
+  background: rgba(238, 238, 238, 0.9);
+  font-family: arial;
+  padding: 10px;
+  color: #000000;
+  border: 0px;
+  border-radius: 12px;
+  pointer-events: none;
 }
 
-.d3-tip:after {
-  box-sizing: border-box;
-  display: inline;
-  font-size: 10px;
-  width: 100%;
+.d3-tipPath {
   line-height: 1;
-  color: rgba(0, 0, 0, 0.8);
-  content: "\25BC";
-  position: absolute;
-  text-align: center;
+  background: #FFFFFF;
+  font-family: arial;
+  padding: 10px;
+  color: #000000;
+  border: 0px;
+  border-radius: 12px;
+  pointer-events: none;
 }
-
-.d3-tip.n:after {
-  margin: -1px 0 0 0;
-  top: 100%;
-  left: 0;}
-  
-  .axis text {
-    font-family: sans-serif;
-    font-size: 10px;
-}
-
-/*path { 
-  stroke: steelblue;
-  stroke-width: 2;
-  fill: none;
-}*/
 
 svgBrush {
   font: 10px sans-serif;
 }
-.axis text {
-  font-family: courier;
-  font-size: 12px;
-	stroke:black;
-	fill:black;
-	
-}
-.axis path,
-.axis line {
-	fill: none;
-	stroke: grey;
-	stroke-width: 1;
-	shape-rendering: crispEdges;
+
+#panelContent .brushxaxis,
+#panelContent .brushyaxis {
+  fill: black;
+  stroke: black;
+  font-size: 10px;
+  stroke-width: 1;
+  shape-rendering: crispEdges;
 }
 
-.area {
-    fill: lightsteelblue;
+#panelContent line, #panelContent path {
+  fill: none;
+  stroke: black;
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+#panelContent .area {
+    fill: darkblue;
     stroke-width: 0;
 }
-.brush .extent {
+#panelContent .areaTop {
+    fill: lightsteelblue;
+    opacity: 0.8;
+    stroke-width: 0;
+}
+
+#panelContent .extent {
   stroke: #fff;
-  fill-opacity: .125;
-  shape-rendering: crispEdges;
+  fill: #E3C937;
+  fill-opacity: .4;
+  
+}
+#panelContent input {
+  width: 150px;
+}
+.button {
+  background-color:darkblue;
+  border-radius:20px;
+  display:inline-block;
+  color:#ffffff;
+  font-family:arial;
+  font-size:12px;
+  padding: 8px 5px;
+  margin: 0px;
+}
+
+/*style for the image slider*/
+#sliderContainer {
+    font-size: 12px;
+    padding:0px;
+    margin: -12px auto auto;
+    font-family:arial;
+}
+
+#sliderContent {
+    text-align: center;
+    height:140px;
+    background-color:#ebebeb;
+    border:1px solid #898989;
+}
+
+#similarHalo {
+    font-weight: bold;
+    font-size: 13px;
+    position:relative;
+    text-align:left;
+    margin:auto;
+    top: 18px;
+    z-index: 1;
+}
+
+#sliderContent .spacing {
+    height: 8px;
+    margin: 3px 0px 0px 7px;
+    font-weight: bold;
+}
+
+#current.viewer {
+    height:140px;
+    margin: auto; /*top right bottom left*/
+    padding: 0px;
+    overflow: auto;
+    position: relative;
+    border:0px;
+    display: inline-block;
+    background-color: #ebebeb;
+}
+
+#current .item {
+    background-color:#ebebeb;
+}
+
+#current form {
+    margin-top: -13px;
+}
+#similarities.viewer {
+    height:140px;
+    margin: auto; /*top right bottom left*/
+    padding: 0px;
+    overflow: auto;
+    position: relative;
+    border:0px solid #898989;
+    border-left: 1px solid #898989;
+    display: inline-block;
+    background-color: #ebebeb;
+}
+.content-conveyor {
+    display: inline-block; 
+    position: relative;
+}
+.item {
+    width: 150px;
+    display: inline-block;
+    float:left; 
+    text-align:center;
+
+}
+.item img {
+    padding:0px;
+}
+
+.item a:hover {
+    opacity: 0.5;
+}
+
+.item .text {
+    margin-top: -8px;
 }

@@ -1,547 +1,780 @@
 var displayMergerTree = function(raw_links, raw_nodes, selectedGroup) {
-    var doc = document.documentElement;
-    var clientWidth = 960;
-    var leftPanelWidth = 350;
-    var margin = {top: 30, right: 20, bottom: 20, left: 70};
-    // width = clientWidth - margin.right - margin.left - leftPanelWidth,
-    // height = doc.clientHeight - margin.top - margin.bottom - 100;
-    var width = 900;
-    var height = 900;
 
-    d3.select("#header").style("width", clientWidth+"px");
-    d3.select("#header").style("height", 80+"px");
-    d3.select("#windowDiv").style("width", clientWidth+"px");
+//var doc = document.documentElement;
+//var clientWidth = Math.min(doc.clientWidth-50, 1600);
+//var clientHeight = doc.clientHeight;
+var clientWidth = 1040;
+var clientHeight = 730;
+var margin = {top: 60, right: 20, bottom: 20, left: 20},
+width = clientWidth - margin.right - margin.left,
+height = 400;
+//height = Math.max(clientHeight - margin.top - margin.bottom - 420, 400); //panelContentHeight, header, buttons, and padding for header
+d3.select("#panelContent").style("width", clientWidth+"px")
+d3.select("#topContainer").style("width", clientWidth/2 +"px")
+d3.select("#legend").style("height", 30+"px");
+d3.select("#header").style("width", clientWidth+"px");
+d3.select("#mergerTreeResult").style("width", clientWidth+"px");
+d3.select("#table").style("width", clientWidth+"px");
+d3.select("#toptable").style("width", clientWidth+"px");
+d3.select("#graphLabelTable").style("width", clientWidth+"px");
+d3.select("#sliderContainer").style("width", (clientWidth-200)+"px"); 
+d3.select("#sliderContent").style("width", (clientWidth-200)+"px"); 
+d3.select("#massInformation").style("width", clientWidth/2 +"px");
+d3.select("#particleInformation").style("width", clientWidth/2 +"px");
+//d3.select("#windowDiv").style("height", (clientHeight-60)+"px");
 
-    //******************************SET UP SVG GRAPH WINDOW
-    var i = 0,
-    duration = 600,root;
+//textboxes and buttons
+var textBoxMinMass = document.getElementById('textboxMinMass');
+var textBoxMaxMass = document.getElementById('textboxMaxMass');
+var textBoxMinParticle = document.getElementById('textboxMinParticle');
+var textBoxMaxParticle = document.getElementById('textboxMaxParticle');
+var buttonMass = d3.select("#buttonMass");
+var buttonParticle = d3.select("#buttonParticle");
+var textBoxSelected = document.getElementById('haloTextSelected');
+var checkBoxToggleGraphs = document.getElementById('checkedRemoveGraphs');
+var checkBoxToggleTooltips = document.getElementById('checkedRemoveTooltips');
+//LUMINOSITY var checkBoxToggleLuminosity = document.getElementById('checkedLuminosity');
 
-    var haloMap, nodesMap, linksMap;
+//******************************SET UP SVG GRAPH WINDOW
+var i = 0,
+duration = 600,root;
 
-    var tree = d3.layout.tree()
-    .size([width, height]);
+var haloMap, nodesMap, linksMap, timeMap;
 
-    var diagonal = d3.svg.diagonal()
-    .projection(function(d) { return [d.x, d.y]; });
+var maxMass = 0, minMass, maxParticle = 0, minParticle;
 
-    var nodeDistance = 100;
-    var massScale = d3.scale.log();
-    var timeScale = d3.scale.linear();
+//LUMINOSITYvar haloLums = [];
 
-    var zoom = d3.behavior.zoom();
+var maxTime = 0;
 
-    var tip = d3.tip()
-    .attr('class', 'd3-tip')
-    .offset([-10, 0])
-    .html(function(d) {
-        return "<font color=\"red\">Halo Grp: </font>"  + d.GrpID + "<br/>" 
-        + "<font color=\"red\">Halo Mass: </font>" + d.HaloMass + "<br/>" 
-        + "<font color=\"red\">Total Particles: </font>" + d.TotalParticles + "<br/>"
-        + "<font color=\"red\">Total Dark Particles: </font>" + d.TotalDarkParticles + "<br/>";
-    });
+var tree = d3.layout.tree()
+    .size([height, width]);
 
-    var svg = d3.select("#svgContent")
+var diagonal = d3.svg.diagonal()
+    .projection(function(d) { return [d.y, d.x]; });
+
+var nodeDistance;
+var massScale = d3.scale.log();
+var linkScale = d3.scale.log();
+//LUMINOSITYvar lumScale = d3.scale.linear();
+var timeScale = d3.scale.linear();
+
+var zoom = d3.behavior.zoom();
+
+var nodeMouseDown = false;
+var tooltipShown = false;
+var tooltipEdgesShown = false;
+
+//Generate tool tips
+var tip_n = d3.tip()
+  .attr("class", "d3-tip")
+  .direction("n")
+  .offset(function(d) { return [-(zoom.scale()-1)*(massScale(+d.HaloMass)+3),0]; })
+  .html(function(d) { return tipHtml(d) });
+
+var tip_s = d3.tip()
+  .attr("class", "d3-tip")
+  .direction("s")
+  .offset(function(d) { return [-(zoom.scale()-1)*(massScale(+d.HaloMass)+3),0]; })
+  .html(function(d) { return tipHtml(d) });
+
+var tip_e = d3.tip()
+  .attr("class", "d3-tip e")
+  .direction("ne")
+  .offset(function(d) { return [0, -10]; })
+  .html(function(d) { return tipHtml(d) });
+
+var tip_w = d3.tip()
+  .attr("class", "d3-tip w")
+  .direction("nw")
+  .offset(function(d) { return [0,10]; })
+  .html(function(d) { return tipHtml(d) });
+
+var svg = d3.select("#svgContent")
     .style("width", width + margin.left + margin.right)
     .style("height", height + margin.top + margin.bottom)
     .append("svg")
     .attr("width", width + margin.left + margin.right)
-    .attr("height", height + margin.top + margin.bottom)
-    .append("g")
+    .attr("height", height + margin.top + margin.bottom);
+
+svg.append("g")
+    .attr("class","timeaxislabel")
+    .append("rect")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", margin.top - margin.bottom);
+
+svg = svg.insert("g",".timeaxislabel")
     .call(zoom)
     .on("dblclick.zoom", null);
+    
+svg.call(tip_n);
+svg.call(tip_s);
+svg.call(tip_e);
+svg.call(tip_w);
 
-    svg.call(tip);
-
-    svg.append("rect")
+svg.append("rect")
     .attr("width", width + margin.left + margin.right)
-    .attr("height", height + margin.top + margin.bottom)
-    .attr("stroke", "black")
-    .attr("fill", "white");
+    .attr("height", height + 2*margin.bottom)
+    .attr("transform", "translate(" + 0 + "," + (margin.top-margin.bottom) + ")");
 
-    svg.append("rect")
+//just for margin barriers, can remove
+svg.append("rect")
     .attr("width", width)
     .attr("height", height)
-    .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
-    .attr("stroke", "black")
-    .attr("fill", "white");
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+    
+// filters defined
+var defs = svg.append("defs");
+var filter = defs.append("filter")
+    .attr("id", "blur")
+    .attr("height", "130%")
+    .attr("width", "130%");
+    
+filter.append("feGaussianBlur")
+    .attr("in", "SourceGraphic")
+    .attr("stdDeviation", 2)
+    .attr("result", "blur");
 
-    svg.append("g")
+svg.append("g")
     .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
     .attr("class", "transform")
     .append("g")
     .attr("class", "timeaxis");
 
-    svg.select(".transform").append("g")
+svg.select(".transform").append("g")
     .attr("class", "graph") 
 
-    var graph = svg.select(".graph");	
+var graph = svg.select(".graph");   
 
-    //******************************SET UP LEFT PANEL
-    //brushing details
-    var infoBox = d3.select("#leftPanel");
-    //scales for both charts -- scaled properly later
-    var	x = d3.scale.linear().range([0, 450]);
-    var	y = d3.scale.linear().range([75, 0]);
-    var	xParticle = d3.scale.linear().range([0, 450]);
-    var	yParticle = d3.scale.linear().range([75, 0]);
+//******************************SET UP LEFT PANEL
+//scales for both charts
+var xHeight = clientHeight/6-80; //used for various sections of the graph/areas
+var x = d3.scale.linear().range([0, clientWidth/3-130]);
+var y = d3.scale.linear().range([xHeight, 0]);
+var xParticle = d3.scale.linear().range([0, clientWidth/3-130]);
+var yParticle = d3.scale.linear().range([xHeight, 0]);
 
-    //axes
-    var exponentFormat = function (x) {return x.toExponential(1);};
-    var	xAxis = d3.svg.axis().scale(x).orient("bottom").ticks(10).tickFormat(function(d) { return  exponentFormat(d); });
-    var	yAxis = d3.svg.axis().scale(y).orient("left").ticks(5);
-    var xAxisParticle = d3.svg.axis().scale(xParticle).orient("bottom").tickFormat(d3.format("s"));
-    var	yAxisParticle = d3.svg.axis().scale(yParticle).orient("left").ticks(5);
+//axes formatting
+var exponentFormat = function (x) {return x.toExponential(2)/(1e10);};
+var kformat = d3.format(".1s");
+var timeformat = d3.format(".1f");
 
-    //areas- based on respective domains
-    var area = d3.svg.area()
+var xAxisMass = d3.svg.axis().scale(x).orient("bottom").ticks(10).tickFormat(function(d) { return exponentFormat(Math.pow(10,d)); });
+var yAxisMass = d3.svg.axis().scale(y).orient("left").ticks(5);
+
+var xAxisParticle = d3.svg.axis().scale(xParticle).orient("bottom").tickFormat(function(d) { return kformat(Math.pow(10,d)); });
+var yAxisParticle = d3.svg.axis().scale(yParticle).orient("left").ticks(5);
+
+//areas- based on respective domains
+var area = d3.svg.area()
     .interpolate("monotone")
     .x(function(d) { return x(d.x); })
-    .y0(75)
+    .y0(xHeight)
     .y1(function(d) { return y(d.y); }); 
-    var areaParticle = d3.svg.area()
+    
+var areaParticle = d3.svg.area()
     .interpolate("monotone")
     .x(function(d) { return xParticle(d.x); })
-    .y0(75)
+    .y0(xHeight)
     .y1(function(d) { return yParticle(d.y); });
-
-    //initialize brushes
-    var brush = d3.svg.brush()
+    
+//initialize brushes
+var brushMass = d3.svg.brush()
     .x(x)
-    .on("brush", brushed);
-    var brushParticle = d3.svg.brush()
+    .on("brush", brushedMass);
+var brushParticle = d3.svg.brush()
     .x(xParticle)
-    .on("brush", brushed);
+    .on("brush", brushedParticle);
+    
+//adding brushes to panels
+var svgBrushMass = d3.select("#massPanel").append("svg")
+    .attr("width", clientWidth/3-100) //width a bit more b/c of text
+    .attr("height", clientHeight/8+20);
+var svgBrushParticle = d3.select("#particlePanel").append("svg")
+    .attr("width", clientWidth/3-100) //width a bit more b/c of text
+    .attr("height", clientHeight/8+20);
+    
+//transform position to brush 
+var contextMass = svgBrushMass.append("g")
+    .attr("transform", "translate(" + 40 + "," + 10 + ")"); //staring position
+    
+var contextParticle = svgBrushParticle.append("g")
+    .attr("transform", "translate(" + 40 + "," + 10 + ")"); //staring position
 
-    //adding brushes to panels
-    var svgBrush = d3.select("#massPanel").append("svg")
-        .attr("width", 550) //width a bit more b/c of text
-        .attr("height", 200);
-        var svgBrushParticle = d3.select("#particlePanel").append("svg")
-        .attr("width", 550) //width a bit more b/c of text
-        .attr("height", 200);
+var dataBinMassAllHalos = [];
+var dataBinParticleAllHalos = [];
 
-    //getter used for line 
-    var	valueline = d3.svg.line()
-    .x(function(d) { return x(d.x); })
-    .y(function(d) { return y(d.y); });
+//******************************LOAD TIME MAP DATA
+d3.csv("./../d3/times.csv", function(error1, raw_times) {
+    timeMap = d3.nest().key(function(d) { return d.db }).map(raw_times, d3.map);
+});
 
-    //transform position to brush 
-    var context = svgBrush.append("g")
-        .attr("transform", "translate(" + 45 + "," + 10 + ")"); //staring position
+//******************************LOAD DATA
+d3.csv("./../d3/similarities.csv", function(error3, raw_sims) {
+    //CREATE DATA DEPENDENT VARIABLES
+    var maxSharedParticle = 0, minSharedParticle;
+    var haloMassValuesLog = [], haloParticleValuesLog = [];
+    minMass = raw_nodes[0].HaloMass;
+    minParticle = raw_nodes[0].TotalParticles;
+    minSharedParticle = raw_links[0].sharedParticleCount;
+    //LUMINOSITYminLum = raw_nodes[0].lum;
+    //LUMINOSITYmaxLum = raw_nodes[0].lum;
+    
 
-        var contextParticle = svgBrushParticle.append("g")
-        .attr("transform", "translate(" + 45 + "," + 10 + ")"); //staring position
+    raw_links.forEach(function(d) {
+        maxSharedParticle = Math.max(maxSharedParticle, +d.sharedParticleCount);
+        minSharedParticle = Math.min(minSharedParticle, +d.sharedParticleCount);
+    });
 
+    raw_nodes.forEach(function(d){
+        maxTime = Math.max(maxTime, +d.Timestep);
+        maxMass = Math.max(maxMass, +d.HaloMass);
+        minMass = Math.min(minMass, +d.HaloMass);
+        maxParticle = Math.max(maxParticle, +d.TotalParticles);
+        minParticle = Math.min(minParticle, +d.TotalParticles);
+        //LUMINOSITYminLum = Math.min(minLum, +d.lum);
+        //LUMINOSITYmaxLum = Math.max(maxLum, +d.lum);
+        haloMassValuesLog.push(+getBaseLog(10, d.HaloMass));
+        haloParticleValuesLog.push(+getBaseLog(10, d.TotalParticles));
+        //LUMINOSITYhaloLums.push(+d.lum);
+    });
+    //scale to fit all timesteps
+    nodeDistance = width/maxTime
 
-    //******************************LOAD DATA
-        //CREATE DATA DEPENDENT VARIABLES
-        var maxTime = 0, maxMass = 0, minMass, maxParticle = 0, minParticle;
-        var haloMassValues = [], haloParticleValues = [];
-        minMass = raw_nodes[0].HaloMass;
-        minParticle = raw_nodes[0].TotalParticles;
-        raw_nodes.forEach(function(d){
-            maxTime = Math.max(maxTime, +d.Timestep);
-            maxMass = Math.max(maxMass, +d.HaloMass);
-            minMass = Math.min(minMass, +d.HaloMass);
-            maxParticle = Math.max(maxParticle, +d.TotalParticles);
-            minParticle = Math.min(minParticle, +d.TotalParticles);
-            haloMassValues.push(+d.HaloMass);
-            haloParticleValues.push(+d.TotalParticles);
-        });
-        //know that maximum halo mass is 83751473296264 and minimum is 875591334
-        massScale.domain([minMass, maxMass]).range([1,18]);
-        timeScale.domain([1,maxTime]).range([0,(maxTime-1)*nodeDistance]);
-        //calculates the scale factor to fit all timesteps
-        //height/26 is how far apart nodes need to be from eachother to fit
-        //nodes are currently nodeDistancepx apart
-        var shrink = (height/maxTime)/nodeDistance;
-        //graph.attr("transform", "translate(" + [(width/2)*(1-shrink),0] + ")scale(" + (height/26)/nodeDistance + ")");
-        zoom.y(timeScale).scaleExtent([shrink,(height/5)/nodeDistance]).on("zoom", zoomed);
-
-        var yaxis = svg.select(".timeaxis").selectAll("g.axisgroup")
+    massScale.domain([minMass, maxMass]).range([2,12]);
+    linkScale.domain([minSharedParticle, maxSharedParticle]).range([2,12]);
+    //LUMINOSITYlumScale.domain([minLum, maxLum]).range([.09, 1]); //for opacity
+    timeScale.domain([1,maxTime]).range([0,(maxTime-1)*nodeDistance]);
+    //calculates the max scale factor
+    zoom.x(timeScale).scaleExtent([1,(width/8)/nodeDistance]).on("zoom", zoomed);
+    var yaxis = svg.select(".timeaxis")
+        .selectAll("g.timeaxisgroup")
         .data(d3.range(1, maxTime+1))
         .enter().append("g")
-        .attr("class","axisgroup")
+        .attr("class","timeaxisgroup")
         .attr("transform", function(d) {
-            return "translate(0," + timeScale(d) + ")"; });
+            return "translate(" + timeScale(d) + ", 0)"; });
+        
+    yaxis.append("line")
+        .attr("class", "timeaxisline")
+        .attr("y1", -margin.bottom)
+        .attr("y2", height+margin.bottom);
 
-        yaxis.append("line")
-        .attr("class", "axis")
-        .attr("x1", -margin.right)
-        .attr("x2", width+margin.right);
+    var yaxislabel = d3.select(".timeaxislabel")
+        .selectAll("g.timeaxisgroup")
+        .data(d3.range(1, maxTime+1))
+        .enter().append("g")
+        .attr("class", "timeaxisgroup")
+        .attr("transform", function(d) {
+            return "translate(" + timeScale(d) + ", 0)"; });
 
-        yaxis.append("text")
-        .attr("class", "axislabel")
-        .attr("x", -40)
-        .attr("dy", "0.35em")
-        .attr("text-anchor", "end")
-        .text(function(d) { return d; });
+    yaxislabel.append("text")
+        .attr("x", margin.left)
+        .attr("y", margin.top/2-5)
+        .attr("text-anchor", "middle")
+        .text(function(d) { return timeformat(timeMap.get(d)[0].time); });
 
-        //CREATE HALO TREE MAPS
-        //basically makes an associative array but it's called a d3.map
-        //for each HaloID key, had an array of nodes with that key
-        //each array will be of length one
-        haloMap = d3.map();
-        var tempHaloNodesMap = d3.nest().key(function(d) { return d.NowGroup; }).map(raw_nodes, d3.map);
-        var tempHaloLinksMap = d3.nest().key(function(d) { return d.NowGroup; }).map(raw_links, d3.map);
-        var tempNodesMap, tempLinksMap, tempRoot;
-        tempHaloNodesMap.forEach(function(k, v) {
-            tempNodesMap = d3.nest().key(function(d) { return d.HaloID; }).map(v, d3.map);
-            tempLinksMap = d3.nest().key(function(d) { return d.NextHalo; }).map(tempHaloLinksMap.get(k), d3.map);
+    //CREATE HALO TREE MAPS
+    //basically makes an associative array but it's called a d3.map
+    //for each HaloID key, had an array of nodes with that key
+    //each array will be of length one
+    haloMap = d3.map();
+    var similaritiesMap = d3.nest().key(function(d) { return d.from_Group; }).map(raw_sims, d3.map);
+    var tempHaloNodesMap = d3.nest().key(function(d) { return d.NowGroup; }).map(raw_nodes, d3.map);
+    var tempHaloLinksMap = d3.nest().key(function(d) { return d.NowGroup; }).map(raw_links, d3.map);
+    var tempNodesMap, tempLinksMap, tempRoot;
+    tempHaloNodesMap.forEach(function(k, v) {
+        tempNodesMap = d3.nest().key(function(d) { return d.HaloID; }).map(v, d3.map);
+        tempLinksMap = d3.nest().key(function(d) { return d.NextHalo; }).map(tempHaloLinksMap.get(k), d3.map);
 
-            //make tree structure from links
-            tempHaloLinksMap.get(k).forEach(function(link) {
-                //nodesMap array for each key has only one element
-                var parent = tempNodesMap.get(link.CurrentHalo)[0];
-                var child = tempNodesMap.get(link.NextHalo)[0];
-                if (parent.children) {
-                    parent.children.push(child);
-                } else {
-                    parent.children = [child];
-                }
-            });
-            tempRoot = tempNodesMap.get(tempHaloLinksMap.get(k)[0].CurrentHalo)[0];
-            tempRoot.x0 = width / 2;
-            tempRoot.y0 = 0;
-
-            haloMap.set(k, {root: tempRoot, nodes: tempNodesMap, links: tempLinksMap});
+        //make tree structure from links
+        tempHaloLinksMap.get(k).forEach(function(link) {
+            //nodesMap array for each key has only one element
+            var parent = tempNodesMap.get(link.CurrentHalo)[0];
+            var child = tempNodesMap.get(link.NextHalo)[0];
+            if (parent.children) {
+                parent.children.push(child);
+            } else {
+                parent.children = [child];
+            }
         });
-        //default group
-        //updateTree("16");
-        var halo = haloMap.get(selectedGroup);
-        root = halo.root;
-        nodesMap = halo.nodes;
-        linksMap = halo.links;
-        update(root);
-        // linksMap.forEach(function(k, v) {
-        //     //if bad link
-        //     if (v.length > 1) {
-        //         for (var i = 0; i < v.length; i++) {
-        //             v[i].NextHalo = k+'_'+i;
-        //             linksMap.set(k+'_'+i,[v[i]]);
-        //             nodesMap.set(k+'_'+i,nodesMap.get(k));
-        //         };
-        //         linksMap.remove(k);
-        //         nodesMap.remove(k);
-        //     }
-        // });
-        // var badLinks = linksMap.values().filter(function(d) { return d.length > 1; });
-        //console.log(nodesMap);
+        tempRoot = tempNodesMap.get(tempHaloLinksMap.get(k)[0].NowHalo)[0];
+        tempRoot.x0 = height/2;
+        tempRoot.y0 = 0;
+        haloMap.set(k, {root: tempRoot, nodes: tempNodesMap, links: tempLinksMap, similarities: similaritiesMap.get(k)});
+    });
+    
+    //default group
+    var halo = haloMap.get(selectedGroup);
+    root = halo.root;
+    nodesMap = halo.nodes;
+    linksMap = halo.links;
+
+    haloMassValuesCurrentHalo = [], haloParticleValuesCurrentHalo = [];
+    minMassC = maxMass;
+    maxMassC = 0;
+    minParticleC = maxParticle;
+    maxParticleC = 0;
+    
+    nodesMap.values().forEach(function(d) {
+        haloMassValuesCurrentHalo.push(+getBaseLog(10, d[0].HaloMass))
+        haloParticleValuesCurrentHalo.push(+getBaseLog(10, d[0].TotalParticles));
+        minMassC = Math.min(minMassC, +d[0].HaloMass);
+        maxMassC = Math.max(maxMassC, +d[0].HaloMass);
+        minParticleC = Math.min(minParticleC, +d[0].TotalParticles);
+        maxParticleC = Math.max(maxParticleC, +d[0].TotalParticles);
         
-        //console.log(linksMap);
+    });
+    x.domain([getBaseLog(10,minMass), getBaseLog(10, maxMass)]);
+    xParticle.domain([getBaseLog(10, minParticle), getBaseLog(10, maxParticle)]);
+
+    //make buckets
+     dataBinMassAllHalos = d3.layout.histogram()
+    .bins(20)(haloMassValuesLog);
+
+    var temp = [];
+    temp.x = +getBaseLog(10, maxMassC);
+    temp.y = 0;
+    dataBinMassAllHalos.push(temp);
+
+    var dataBinMassCurrentHalo = d3.layout.histogram()
+    .bins(20)(haloMassValuesCurrentHalo);
+
+    dataBinMassCurrentHalo.push(temp);
+    temp = []; 
+    temp.x = +getBaseLog(10, minMassC);
+    temp.y = 0;
+    dataBinMassCurrentHalo.unshift(temp);
+
+    dataBinParticleAllHalos = d3.layout.histogram()
+    .bins(20)(haloParticleValuesLog);
+    
+    temp = [];
+    temp.y = 0;
+    temp.x = +getBaseLog(10, maxParticleC);
+    temp.y = 0;
+    dataBinParticleAllHalos.push(temp);
+
+    var dataBinParticleCurrentHalo = d3.layout.histogram()
+    .bins(20)(haloParticleValuesCurrentHalo);
+
+    dataBinParticleCurrentHalo.push(temp);
+
+    temp = [];
+
+    temp.x = +getBaseLog(10, minParticleC);
+    temp.y = 0;
+    dataBinParticleCurrentHalo.unshift(temp);
+    
+    arrayMeans = [];
+    var currentmean = 0;
+    
+    //compute average per tree
+    dataBinMassAllHalos.forEach(function(d) { d.y = d.y/haloMap.keys().length; });
+    dataBinParticleAllHalos.forEach(function(d) { d.y = d.y/haloMap.keys().length; });
+
+    //set y domains based on bin values
+    y.domain([0, d3.max(dataBinMassCurrentHalo, function(d) { return d.y; })]);
+    yParticle.domain([0, d3.max(dataBinParticleCurrentHalo, function(d) { return d.y; })]);
+    //tie context to area
+    contextMass.append("path")
+        .datum(dataBinMassAllHalos)
+        .attr("class", "area")
+        .attr("d", area)
+        .style("opacity", ".7");
+                
+    contextMass.append("path")
+        .datum(dataBinMassCurrentHalo)
+        .attr("class", "areaTop")
+        .attr("d", area)
+        .style("opacity", ".9");
+
+    contextParticle.append("path")
+        .datum(dataBinParticleAllHalos)
+        .attr("class", "area")
+        .attr("d", areaParticle)
+        .style("opacity", ".7");
         
+    contextParticle.append("path")
+        .datum(dataBinParticleCurrentHalo)
+        .attr("class", "areaTop")
+        .attr("d", areaParticle)
+        .style("opacity", ".9");
 
-        // function collapse(d) {
-        //     if (d.children) {
-        //         d._children = d.children;
-        //         d._children.forEach(collapse);
-        //         d.children = null;
-        //     }
-        // }
-        //root.children.forEach(collapse);
+    //x, y axes and calling brush
+    contextMass.append("g")
+        .attr("class", "brushxaxis")
+        .attr("transform", "translate(0," + xHeight + ")") //axis position
+        .call(xAxisMass)
+            .selectAll("text")
+            .attr("transform","rotate(0) translate(0,0)");
 
-    	//brushing tools
-        /*var haloMassCount = d3.nest().key(function(d) { return d.HaloMass; })
-    								 .rollup(function(leaves) {return leaves.length;})
-    								 .entries(raw_nodes);*/
-        //CREATE BRUSHING TOOLS
-        //parsing through values for halomass and totalparticles -- parseInt does not work
-        // var haloMassValues2 = d3.nest().key(function(d) { return parseFloat(d.HaloMass); }).map(raw_nodes, d3.map);
-        //var haloParticleValues2 = d3.nest().key(function(d) { return parseInt(d.TotalParticles); }).map(raw_nodes, d3.map);
+    contextMass.append("text")
+        .attr("class", "brushxlabel")
+        .attr("text-anchor", "middle")
+        .style("font-size", "14px")
+        .style("font-weight", "bold")
+        .attr("x", clientWidth/8-22)
+        .attr("y", clientHeight/8-5)
+        .text("Log Mass (1e10)");
+        //1e10 is not the same as e^10; this means 1 x 10^10
 
-        //get the key values from previous
-        // var keys = haloMassValues2.keys();
-        //var keysParticles = haloParticleValues2.keys();
-        //mapping/foreach can be done here, but I couldn't get it to work
-        // var arrayTest = [];
-        // for(var i = 0; i< keysParticles.length; i++){
-        //     arrayTest[i] = parseInt(keysParticles[i])
-        // ;}
-        // var arrayTest2 = [];
-        // for(var i = 0; i< keys.length; i++){
-        //     arrayTest2[i] = parseInt(keys[i])
-        // ;}
+        
+    contextMass.append("g")
+        .attr("class", "brushyaxis")
+        .attr("transform", "translate(0," + 0 + ")") //axis position
+        .call(yAxisMass);
 
-        // //get min/max for domains
-        // var minMass = d3.min(arrayTest2, function(d) { return d; });
-        // var maxMass = d3.max(arrayTest2, function(d) { return d; });
-        // var minParticle = d3.min(arrayTest, function(d) { return d; });
-        // var maxParticle = d3.max(arrayTest, function(d) { return d; });
-        x.domain([minMass, maxMass + 10]);
-        xParticle.domain([minParticle, maxParticle + 10]); //a bit of buffer
-        //make buckets
-        var dataBin = d3.layout.histogram()
-        .bins(10)(haloMassValues);
-        var dataBinParticle = d3.layout.histogram()
-        .bins(10)(haloParticleValues);
-        //console.log(dataBinParticle);
-        //dataBinParticle = d3.layout.histogram()
-        //    .bins(10)(keysParticles);
-        //dataBin = d3.layout.histogram()
-        //    .bins(10)(keys);                
-        //console.log(dataBinParticle);
-        //set up bins min values as x axis ticks
-        var finalArray = [];
-        for(var i=0; i< dataBin.length; i++){
-        	var min = d3.min(dataBin[i], function(d) { return d; });
-        	finalArray[i] = {x: min, y: dataBin[i].length};
-        }
-        var finalArrayParticle = [];
-        for(var i=0; i< dataBinParticle.length; i++){
-            var min = d3.min(dataBinParticle[i], function(d) { return d; });
-            finalArrayParticle[i] = {x: min, y: dataBinParticle[i].length };
-        }
-        //set y domains based on bin values
-        y.domain([0, d3.max(finalArray, function(d) { return d.y; })]);
-        yParticle.domain([0, d3.max(finalArrayParticle, function(d) { return d.y; })]);
-        //console.log(finalArrayParticle);
-        //tie context to area
-        context.append("path")
-        .datum(finalArray)
-        .attr("class", "area")
-        .attr("d", area);
+    contextMass.attr("class", "xbrush")
+        .call(brushMass)
+        .selectAll("rect")
+        .attr("height", xHeight + 10)
+        .attr("y", -6);   
 
-        contextParticle.append("path")
-        .datum(finalArrayParticle)
-        .attr("class", "area")
-        .attr("d", areaParticle);
+    contextParticle.append("g")
+        .attr("class", "brushxaxis")
+        .attr("transform", "translate(0," + xHeight + ")") //axis position
+        .call(xAxisParticle)
+            .selectAll("text")
+            .attr("transform","rotate(0) translate(0,0)");
+          
+    contextParticle.append("text")
+        .attr("class", "brushxlabel")
+        .attr("text-anchor", "middle")
+        .style("font-size", "14px")
+        .style("font-weight", "bold")
+        .attr("x", clientWidth/8-22)
+        .attr("y", clientHeight/8-5)
+        .text("Total Particle Count");
+          
+    contextParticle.append("g")
+        .attr("class", "brushyaxis")
+        .attr("transform", "translate(0," + 0 + ")") //axis position
+        .call(yAxisParticle);
+          
+    contextParticle.attr("class", "xbrush")
+        .call(brushParticle)
+        .selectAll("rect")
+        .attr("height", xHeight + 10)
+        .attr("y", -6);
+        
+    //adding the legend 
+    var areaColors = [{text: "Average", color:"darkblue"}, {text: "Current Halo", color:"lightsteelblue"}];
+    var legend =  d3.select("#legend").append("svg")
+          .attr("class","legend")
+          .attr("width", 300)
+          .attr("height", 20)
+        .selectAll("g")
+            .data(areaColors)
+        .enter().append("g")
+            .attr("transform", function(d, i) { return "translate(" + i * 100 + ", 0)"; });
+            
+        legend.append("rect")
+        .attr("width", 12)
+        .attr("height", 12)
+        .style("stroke", "black")
+        .style("stroke-width", "2px")
+        .style("fill", function(d) {return d.color});
 
-        //x, y axes and calling brush
-        context.append("g")
-        .attr("class", "x axis")
-            .attr("transform", "translate(0," + 75 + ")") //axis position
-            .call(xAxis);
+        legend.append("text")
+        .attr("x", 24)
+        .attr("y", 9)
+        .attr("dy", ".35em")
+        .text(function(d) {return d.text});
 
-            context.append("text")
-            .attr("class", "x label")
-            .attr("text-anchor", "end")
-            .style("font-size", "11px")
-            .attr("x", 250)
-            .attr("y", 110)
-            .text("Mass");
+    populateSlider();
+    update(root);
+    //start at zoomed out state
+});
 
-            context.append("g")
-            .attr("class", "y axis")
-            .attr("transform", "translate(0," + 0 + ")") //axis position
-            .call(yAxis);
+function update(source) {
+    //compute the new tree layout.
+    var nodes = tree.nodes(root);
+    var links = tree.links(nodes);
 
-            context.attr("class", "x brush")
-            .call(brush)
-            .selectAll("rect")
-            .attr("height", 80)
-            .attr("y", -6);   
+    //normalize for fixed-depth.
+    nodes.forEach(function(d) { d.y = d.depth * nodeDistance; });
 
-            context.append("text")
-            .attr("class", "y label")
-            .attr("text-anchor", "end")
-            .style("font-size", "11px")
-            .attr("transform", "rotate(-90)")
-            .attr("x", -15)
-            .attr("y", -35)
-            .text("Frequency");
-
-            contextParticle.append("g")
-            .attr("class", "x axis")
-            .attr("transform", "translate(0," + 75 + ")") //axis position
-            .call(xAxisParticle);
-
-            contextParticle.append("text")
-            .attr("class", "x label")
-            .attr("text-anchor", "end")
-            .style("font-size", "11px")
-            .attr("x", 250)
-            .attr("y", 110)
-            .text("Total Particle Count");
-
-            contextParticle.append("g")
-            .attr("class", "y axis")
-            .attr("transform", "translate(0," + 0 + ")") //axis position
-            .call(yAxisParticle);
-
-            contextParticle.append("text")
-            .attr("class", "y label")
-            .attr("text-anchor", "end")
-            .style("font-size", "11px")
-            .attr("transform", "rotate(-90)")
-            .attr("x", -15)
-            .attr("y", -35)
-            .text("Frequency");
-
-            contextParticle.attr("class", "x brush")
-            .call(brushParticle)
-            .selectAll("rect")
-            .attr("height", 80)
-            .attr("y", -6);
-
-            function update(source) {
-
-        // Compute the new tree layout.
-        var nodes = tree.nodes(root);
-        var links = tree.links(nodes);
-        //console.log(nodes);
-        //console.log(links)
-        // Normalize for fixed-depth.
-        nodes.forEach(function(d) { d.y = d.depth * nodeDistance; });
-
-        // Update the nodes…
-        var node = graph.selectAll("g.node")
+    // Update the nodes…
+    var node = graph.selectAll("g.node")
         .data(nodes, function(d, i) { return d.HaloID; });
 
-        // Enter any new nodes at the parent's previous position.
-        var nodeEnter = node.enter().append("g")
+    //enter any new nodes at the parent's previous position.
+    var nodeEnter = node.enter().append("g")
         .attr("class", "node")
-        .attr("transform", function(d) { return "translate(" + source.x0 + "," + source.y0 + ")"; })
-        .on("click", click);
+        .attr("transform", function(d) { return "translate(" + source.y0 + "," + source.x0 + ")"; });
 
-        nodeEnter.append("circle")
-        .attr("r", 1e-6)
-        .style("fill", function(d) { return d._children ? "lightsteelblue" : "#fff"; })
-        .style("stroke", function(d) { return (d.Prog==1) ? "red" : "lightsteelblue"; })
-        .on('mouseover', tip.show)
-        .on('mouseout', tip.hide);
-
-        nodeEnter.append("text")
-        .attr("x", function(d) { return -massScale(d.HaloMass)-5; })
-        .attr("dy", ".35em")
-        .attr("text-anchor", function(d) { return d.children || d._children ? "end" : "start"; })
-        .text('')
+    nodeEnter.append("circle")
+        .attr("class", "shadow")
+        .attr("r", 1e-6);
+        
+    nodeEnter.append("circle")
+        .attr("class", "visible")
+        .attr("r", 1e-6);
+        
+    nodeEnter.append("path") //0 0 is center of circle
+        .attr("class", "children")
+        .attr("d", "M 0 0")
         .style("fill-opacity", 1e-6);
+        
+    nodeEnter.append("circle")
+        .attr("class", "hover")
+        .attr("r", 1e-6)
+        .on("mouseover", function(d) {
+            var x = zoom.scale()*d.x + zoom.translate()[1];
+            var y = zoom.scale()*d.y + zoom.translate()[0];
+            if (y <= 80) {
+                tip_e.show(d);
+            } else if (y >= width-100) {
+                tip_w.show(d);
+            } else if (x <= 50) {
+                tip_s.show(d);
+            } else {
+                tip_n.show(d);
+            }
+            tooltipShown = true;
+        })
+        .on("mouseout", function(d) { 
+            tip_n.hide(d);
+            tip_s.hide(d);
+            tip_e.hide(d);
+            tip_w.hide(d);
+            tooltipShown = false;
+        })
+        .on("mouseup", function(d) { nodeMouseDown = false; })
+        .on("mousedown", function(d) { nodeMouseDown = true; })
+        .on("mousemove", function(d) { 
+            if (!nodeMouseDown && !tooltipShown) {
+                var x = zoom.scale()*d.x + zoom.translate()[1];
+                var y = zoom.scale()*d.y + zoom.translate()[0];
+                if (y <= 80) {
+                    tip_e.show(d);
+                } else if (y >= width-100) {
+                    tip_w.show(d);
+                } else if (x <= 50) {
+                    tip_s.show(d);
+                } else {
+                    tip_n.show(d);
+                }
+                tooltipShown = true;
+            }
+        })
+        .on("click", click)
+        .style("fill", "pink")
+        .style("opacity", "0.0001");
 
-        // Transition nodes to their new position.
-        var nodeUpdate = node.transition()
+    //blur filter 
+    nodeEnter.select("circle.shadow").append("defs")  
+        .append("filter")  
+        .attr("id", "blur")  
+        .attr("stdDeviation", 15); 
+        
+    //transition nodes to their new position.
+    var nodeUpdate = node.transition()
         .duration(duration)
-        .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+        .attr("transform", function(d) { return "translate(" + d.y + "," + d.x + ")"; });
 
-        nodeUpdate.select("circle")
+    nodeUpdate.select("circle.visible")
         .attr("r", function(d) { return massScale(d.HaloMass); })
-        .style("fill", function(d) { return d._children ? "lightsteelblue" : "#fff"; })
-        .style("stroke", function(d) { return d.Prog=='1' ? "red" : "lightsteelblue"; })
-        .style("stroke-width", "3");
-
-    	// color filters based on brushes
-      nodeUpdate.selectAll("text")
-      .style("fill", function(d) {
-        if(brush.empty() && brushParticle.empty()) {
-            return "black";
-        } else if (!brush.empty() && brushParticle.empty()) {
-            if (d.HaloMass < brush.extent()[0] || d.HaloMass > brush.extent()[1]) {
-                return "black";
+        .style("stroke", function(d) { return d.Prog=='1' ? "#D44848" : "lightsteelblue"; })
+        .style("stroke-width", "2")
+        .style("opacity", "1");
+        
+    nodeUpdate.select("circle.shadow")
+        .attr("r", function(d)
+            {
+             var scaledMass = massScale(d.HaloMass); //up to 12
+             switch(true)
+             {
+                case (scaledMass <= 4): return scaledMass+5;
+                case (scaledMass <= 5): return scaledMass*2;
+                case (scaledMass <= 7): return 12;
+                case (scaledMass < 12): return scaledMass+6;
+                
+             }
+            })
+        .style("opacity", ".0001");
+        
+    nodeUpdate.select("circle.hover")
+        .attr("r", function(d){
+            if(massScale(d.HaloMass) < 7) {
+                return 7;
             } else {
-                return "red";
+                return massScale(d.HaloMass);
             }
-        } else if (brush.empty() && !brushParticle.empty()) {
-            if (d.TotalParticles < brushParticle.extent()[0] || d.TotalParticles > brushParticle.extent()[1]) {
-                return "black";
-            } else {
-                return "red";
+            });
+    
+    nodeUpdate.select("path.children")
+        .style("fill-opacity", function(d) { return d._children ? 0.7 : 1e-6; })
+        .attr("d", function(d) {
+            var r = massScale(d.HaloMass)+2; //2 for stroke width
+            var p = 10;
+            var str = "M " + r + " -" + p + " L " + r + " " + p + " L " + (1.5*p+r) + " 0 z";
+            return str;
+        });
+            
+    //color filters based on brushes
+    var brushExtentMin = Math.pow(10,brushMass.extent()[0]);
+    var brushExtentMax = Math.pow(10,brushMass.extent()[1]);
+
+    var brushExtentMinP = Math.pow(10,brushParticle.extent()[0]);
+    var brushExtentMaxP = Math.pow(10,brushParticle.extent()[1]);
+
+    counterHaloSelected = 0;
+    var otherCount = 0;
+    
+    nodeUpdate.selectAll("circle.shadow")
+        .filter(function (d){
+              if((+d.HaloMass >= brushExtentMin) && (+d.HaloMass <= brushExtentMax))
+              {
+                 otherCount = otherCount + 1;
+              }
+            
+            if(
+               (!brushMass.empty() && brushParticle.empty() && ((+d.HaloMass >= brushExtentMin) && (+d.HaloMass <= brushExtentMax))) || //mass brush and conditions
+               (brushMass.empty() && !brushParticle.empty()  && ((d.TotalParticles >= brushExtentMinP) && (d.TotalParticles <= brushExtentMaxP))) || //particle brush and conditions
+               (((+d.HaloMass >= brushExtentMin) && (+d.HaloMass <= brushExtentMax)) && ((d.TotalParticles >= brushExtentMinP) && (d.TotalParticles <= brushExtentMaxP)))) //both selected
+               {
+                 counterHaloSelected = counterHaloSelected + 1;
+                 return d;
+               }
+        })
+        .style("fill", "#E3C937")
+        .style("opacity", ".5")
+        .style("filter", "url(#blur)");
+
+    nodeUpdate.selectAll("circle.shadow")
+        .filter(function (d){
+            if(d.selected) {
+                counterHaloSelected = counterHaloSelected + 1;
+                return d;
             }
-        } else {
-            if (d.HaloMass < brush.extent()[0] || d.HaloMass > brush.extent()[1] || d.TotalParticles < brushParticle.extent()[0] || d.TotalParticles > brushParticle.extent()[1]) {
-                return "black";
-            } else {return "red";}
-        }
-    });
-            // .filter(function(d){
-            //     console.log(d.TotalParticles, brushParticle.empty() || (d.TotalParticles >= brushParticle.extent()[0] && d.TotalParticles <= brushParticle.extent()[1]));
-            //     return (!brush.empty() || !brushParticle.empty())
-            //     && (brush.empty() || (d.HaloMass >= brush.extent()[0] && d.HaloMass <= brush.extent()[1]))
-            //     && (brushParticle.empty() || (d.TotalParticles >= brushParticle.extent()[0] && d.TotalParticles <= brushParticle.extent()[1])); })
-            // .style("fill", "red");
+        })
+        .style("fill", "#E3C937")
+        .style("opacity", ".5")
+        .style("filter", "url(#blur)");
 
-    	 /*nodeUpdate.selectAll("text")
-        	 .filter(function(d){
-                //console.log(brush.empty() && brushParticle.empty());
-                //console.log(!brush.empty() && (d.HaloMass < brush.extent()[0] || d.HaloMass > brush.extent()[1]));
-                //console.log(!brushParticle.empty() && (d.TotalParticles < brushParticle.extent()[0] || d.TotalParticles > brushParticle.extent()[1]));
-                return (brush.empty() && brush.empty())
-                || (!brush.empty() && (d.HaloMass < brush.extent()[0] || d.HaloMass > brush.extent()[1]))
-                || (!brushParticle.empty() && (d.TotalParticles < brushParticle.extent()[0] || d.TotalParticles > brushParticle.extent()[1]));})
-.style("fill", "black");*/
-
-nodeUpdate.select("text")
-.style("fill-opacity", 1);
-
-        // Transition exiting nodes to the parent's new position.
-        var nodeExit = node.exit().transition()
+    textBoxSelected.innerHTML = "<b>" + counterHaloSelected + "/" + nodes.length + " Halos selected </b>";
+    
+    //transition exiting nodes to the parent's new position.
+    var nodeExit = node.exit().transition()
         .duration(duration)
-        .attr("transform", function(d) { return "translate(" + source.x + "," + source.y + ")"; })
+        .attr("transform", function(d) { return "translate(" + source.y + "," + source.x + ")"; })
         .remove();
 
-        nodeExit.select("circle")
+    nodeExit.select("circle.visible")
         .attr("r", 1e-6);
 
-        nodeExit.select("text")
-        .style("fill-opacity", 1e-6);
+    nodeExit.select("circle.shadow")
+        .attr("r", 1e-6);
 
-        //console.log(links);
-        // Update the links…
-        var link = graph.selectAll("path.link")
+    //update the links…
+    var link = graph.selectAll("path.link")
         .data(links, function(d) { return d.target.HaloID; });
 
-        // Enter any new links at the parent's previous position.
-        link.enter().insert("path", "g")
+    //enter any new links at the parent's previous position.
+    link.enter().insert("path", "g")
         .attr("class", "link")
         .attr("d", function(d) {
             var o = {x: source.x0, y: source.y0};
             return diagonal({source: o, target: o});
         });
-        //console.log("here");
-        // Transition links to their new position.
-        link.transition()
+
+    //transition links to their new position.
+    link.transition()
         .duration(duration)
         .attr("d", function(d) {
-                //console.log(d);
-                return diagonal(d);
-                //return diagonal({source: nodesMap.get(d.CurrentHalo)[0], target:nodesMap.get(d.NextHalo)[0]});
-            });
-        //console.log("her3e");
-        // Transition exiting nodes to the parent's new position.
-        link.exit().transition()
+            return diagonal(d);
+        })
+        .style("stroke-width", function(d) { return linkScale(+linksMap.get(d.target.HaloID)[0].sharedParticleCount); })
+        .style("opacity","0.4")
+        .style("stroke-linecap", "round"); //can be butt or square
+
+    //transition exiting nodes to the parent's new position.
+    link.exit().transition()
         .duration(duration)
         .attr("d", function(d) {
-         var o = {x: source.x, y: source.y};
-         return diagonal({source: o, target: o});
-     })
+           var o = {x: source.x, y: source.y};
+           return diagonal({source: o, target: o});
+        })
         .remove();
 
-        // Stash the old positions for transition.
-        nodes.forEach(function(d) {
-            d.x0 = d.x;
-            d.y0 = d.y;
+    //stash the old positions for transition.
+    nodes.forEach(function(d) {
+        //if node moved with click, we don't want to display tooltip
+        //movement via drag is handled with transform, not d.x and d.y
+        if (d.x0 != d.x || d.y0 != d.y) {
+            tip_n.hide();
+            tip_s.hide();
+            tip_e.hide();
+            tip_w.hide();
+        }
+        d.x0 = d.x;
+        d.y0 = d.y;
+    });
+}
+
+function getBaseLog(x, y) { //x is base, y is value
+    return Math.log(y) / Math.log(x);
+}
+
+//returns a list of all nodes under the root.
+function flatten(root) {
+    var nodes = [];
+
+    function recurse(node) {
+        if (node.children) {
+            node.children.forEach(recurse);
+        }
+        nodes.push(node);
+    }
+    recurse(root);
+    return nodes;
+}
+
+//function d3 uses when calling tree.links(nodes)
+function linkage(nodes) {
+    return d3.merge(nodes.map(function(parent) {
+        return (parent.children || []).map(function(child) {
+            return {
+                source: parent,
+                target: child
+            };
         });
-    }
+    }));
+}
 
-    // Returns a list of all nodes under the root.
-    function flatten(root) {
-        var nodes = [];
+function clearSelected() {
+    nodesMap.values().forEach(function(d) { d[0].selected = false; });
+}
 
-        function recurse(node) {
-            if (node.children) {
-                node.children.forEach(recurse);
-            }
-            nodes.push(node);
+//toggle children on click.
+function click(d) {
+    function toggleSelect(d) {
+        d.selected = true;
+        if (d.children) {
+            d.children.forEach(function(f) {toggleSelect(f);});
         }
-        recurse(root);
-        return nodes;
     }
-
-    //function d3 uses when calling tree.links(nodes)
-    function linkage(nodes) {
-        return d3.merge(nodes.map(function(parent) {
-            return (parent.children || []).map(function(child) {
-                return {
-                    source: parent,
-                    target: child
-                };
-            });
-        }));
+    if (d3.event.defaultPrevented) {
+        return;
     }
-
-    // Toggle children on click.
-    function click(d) {
-        if (d3.event.defaultPrevented) {
-            return;
-        }
+    if( checkBoxToggleLuminosity.checked) { 
+        checkBoxToggleLuminosity.checked = false;
+    }
+    if(d3.event.shiftKey) {
+        clearSelected();
+        toggleSelect(d);
+        svgBrushMass.select(".xbrush").call(brushMass.clear());
+        svgBrushParticle.select(".xbrush").call(brushParticle.clear());
+        brushedMass();
+        brushedParticle();
+        var oldDuration = duration;
+        //set duration to 0 so the color change is automatic
+        duration = 0;
+        update(root);
+        duration = oldDuration;
+    } else {
         if (d.children) {
             d._children = d.children;
             d.children = null;
@@ -551,68 +784,591 @@ nodeUpdate.select("text")
         }
         update(d);
     }
+}
+function zoomed() {
+    //hide tooltip on zoom and drag; will be shown again when user moved mouse
+    tip_n.hide();
+    tip_s.hide();
+    tip_e.hide();
+    tip_w.hide();
+    tooltipShown = false;
+    var scale = d3.event.scale;
+    var tx = d3.event.translate[0];
+    var ty = d3.event.translate[1];
 
-    function zoomed() {
-        var scale = d3.event.scale;
-        var tx = d3.event.translate[0];
-        var ty = d3.event.translate[1];
-        //console.log(timeScale.domain(), timeScale.range(), scale);
-        //100 for padding
-        tx = Math.min(Math.max(tx, -scale*width+50), width-50);
-        ty = Math.min(Math.max(ty, -scale*(27-3)*nodeDistance), height-100);
-        graph.attr("transform", "translate(" + [tx,ty] + ")scale(" + scale + ")");
-        if (ty == d3.event.translate[1]) {
-            svg.select(".timeaxis").selectAll("g.axisgroup")
+    //100 for padding
+    ty = Math.min(Math.max(ty, -scale*height+scale*height/5), height-scale*height/5);
+    tx = Math.min(Math.max(tx, -scale*(maxTime-5)*nodeDistance), width-3*scale*nodeDistance);
+    //set the zoom translate so if user keeps on scrolling, it doesn't register with zoom
+    zoom.translate([tx,ty]);
+    graph.attr("transform", "translate(" + [tx,ty] + ")scale(" + scale + ")");
+    if (tx == d3.event.translate[0]) {
+        svg.select(".timeaxis").selectAll("g.timeaxisgroup")
             .attr("transform", function(d) {
-                    //console.log(d, timeScale(d)); 
-                    return "translate(0," + timeScale(d) + ")";
-                });
+                return "translate(" + timeScale(d) + ", 0)";
+            });
+        d3.select(".timeaxislabel").selectAll("g.timeaxisgroup")
+            .attr("transform", function(d) {
+                return "translate(" + timeScale(d) + ", 0)";
+            });
+        }
+}
+
+function changeTree(grp) {
+    svgBrushMass.select(".xbrush").call(brushMass.clear());
+    svgBrushParticle.select(".xbrush").call(brushParticle.clear());
+    //LUMINOSITYluminosityCheck();
+    clearSelected();
+
+    var timeOut1, timeOut2 = 0;
+    if (zoom.scale() != 1 || zoom.translate()[0] != 0 || zoom.translate()[1] != 0) {
+        timeOut1 = duration;
+        zoom.scale(1);
+        zoom.translate([0,0]);
+        graph.transition().duration(duration).attr("transform", "translate(" + [0,0] + ")scale(" + 1 + ")");
+        svg.select(".timeaxis").selectAll("g.timeaxisgroup").transition().duration(duration)
+            .attr("transform", function(d) {
+                return "translate(" + timeScale(d) + ", 0)";
+            });
+        d3.select(".timeaxislabel").selectAll("g.timeaxisgroup")
+            .attr("transform", function(d) {
+                return "translate(" + timeScale(d) + ", 0)";
+            });
+    }
+
+    setTimeout(function(){
+        function expand(d) {
+            //must check if children and _children so don't expand leaf
+            if (d._children) {
+                timeOut2 = duration;
+                d.children = d._children;
+                d._children = null;
+                update(d);
+                d.children.forEach(expand);
+            }
+            else if (d.children) {
+                d.children.forEach(expand);
+            }
+        }
+        expand(root)
+        //pause for the transition to complete
+        setTimeout(function(){
+            var halo = haloMap.get(grp);
+            root = halo.root;
+            nodesMap = halo.nodes;
+            linksMap = halo.links;
+            changeGraph();
+            changeSlider();
+            //exit current tree
+            var node = graph.selectAll("g.node")
+            .data([]);
+            //transition exiting nodes
+            var nodeExit = node.exit().transition()
+            .duration(duration)
+            .attr("transform", function(d) { return "translate(" + root.y0 + "," + root.x0 + ")"; })
+            .remove();
+
+            nodeExit.select("circle")
+            .attr("r", 1e-6);
+
+            nodeExit.select("text")
+            .style("fill-opacity", 1e-6);
+
+            //exit link
+            var link = graph.selectAll("path.link")
+            .data([]);
+
+            // Transition exiting nodes
+            link.exit().transition()
+            .duration(duration)
+            .attr("d", function(d) {
+               var o = {x: root.x0, y: root.y0};
+               return diagonal({source: o, target: o});
+            })
+            .remove();
+            setTimeout(function() {
+                update(root);
+            }, duration);
+        }, timeOut2);
+    }, timeOut1);
+}
+
+function changeGraph() {
+    
+    minMassC = maxMass;
+    maxMassC = 0;
+    minParticleC = maxParticle;
+    maxParticleC = 0;
+    var haloMassValuesCurrentHalo = [], haloParticleValuesCurrentHalo = [];
+    nodesMap.values().forEach(function(d) {
+        haloMassValuesCurrentHalo.push(+getBaseLog(10, d[0].HaloMass))
+        haloParticleValuesCurrentHalo.push(+getBaseLog(10, d[0].TotalParticles));
+        minMassC = Math.min(minMassC, +d[0].HaloMass);
+        maxMassC = Math.max(maxMassC, +d[0].HaloMass);
+        minParticleC = Math.min(minParticleC, +d[0].TotalParticles);
+        maxParticleC = Math.max(maxParticleC, +d[0].TotalParticles);
+          
+    });
+    
+    var dataBinMassCurrentHalo = d3.layout.histogram()
+        .bins(20)(haloMassValuesCurrentHalo);
+    var dataBinParticleCurrentHalo = d3.layout.histogram()
+        .bins(20)(haloParticleValuesCurrentHalo);
+
+    var temp = [];
+    temp.x = +getBaseLog(10, maxMassC);
+    temp.y = 0;
+    dataBinMassCurrentHalo.push(temp);
+
+    temp = [];
+    temp.x = +getBaseLog(10, minMassC);
+    temp.y = 0;
+    dataBinMassCurrentHalo.unshift(temp);
+
+    temp = [];
+    temp.x = +getBaseLog(10, maxParticleC);
+    temp.y = 0;
+    dataBinParticleCurrentHalo.push(temp);
+
+    temp = [];
+    temp.x = +getBaseLog(10, minParticleC);
+    temp.y = 0;
+    dataBinParticleCurrentHalo.unshift(temp);
+    
+    y.domain([0, d3.max(dataBinMassCurrentHalo, function(d) { return d.y; })]);
+   yParticle.domain([0, d3.max(dataBinParticleCurrentHalo, function(d) { return d.y; })]);
+    
+    d3.selectAll(".brushyaxis .tick").remove();
+    
+     contextMass.select(".area")
+        .datum(dataBinMassAllHalos)
+        .transition()
+        .duration(duration)
+        .attr("d", area)
+        .style("opacity", ".7");
+                
+    contextParticle.select(".area")
+        .datum(dataBinParticleAllHalos)
+        .transition()
+        .duration(duration)
+        .attr("d", areaParticle)
+        .style("opacity", ".7");
+    
+    contextMass.append("g")
+        .attr("class", "brushyaxis")
+        .attr("transform", "translate(0," + 0 + ")") //axis position
+        .call(yAxisMass);
+        
+        
+    contextParticle.append("g")
+        .attr("class", "brushyaxis")
+        .attr("transform", "translate(0," + 0 + ")") //axis position
+        .call(yAxisParticle);
+    
+    contextMass.select(".areaTop")
+        .datum(dataBinMassCurrentHalo)
+        .transition()
+        .duration(duration)
+        .attr("d", area)
+        .style("opacity", ".9");
+
+    contextParticle.select(".areaTop")
+        .datum(dataBinParticleCurrentHalo)
+        .transition()
+        .duration(duration)
+        .attr("d", areaParticle)
+        .style("opacity", ".9");
+}
+
+function resetTree() {
+    var timeOut1 = 0;
+    if (zoom.scale() != 1 || zoom.translate()[0] != 0 || zoom.translate()[1] != 0) {
+        timeOut1 = duration;
+        zoom.scale(1);
+        zoom.translate([0,0]);
+        graph.transition().duration(duration).attr("transform", "translate(" + [0,0] + ")scale(" + 1 + ")");
+        svg.select(".timeaxis").selectAll("g.timeaxisgroup").transition().duration(duration)
+            .attr("transform", function(d) {
+                return "translate(" + timeScale(d) + ", 0)";
+            });
+        d3.select(".timeaxislabel").selectAll("g.timeaxisgroup")
+            .attr("transform", function(d) {
+                return "translate(" + timeScale(d) + ", 0)";
+            });
+    }
+    //pause for the transition to complete
+    setTimeout(function(){
+        function expand(d) {
+            //must check if children and _children so don't expand leaf
+            if (d._children) {
+                d.children = d._children;
+                d._children = null;
+                update(d);
+                setTimeout(function() { d.children.forEach(expand); }, duration);
+                //update(d);
+            }
+            else if (d.children) {
+                d.children.forEach(expand);
+            }
+        }
+        expand(root)
+    }, timeOut1);
+}
+
+function download() {
+    var data = "GrpID,Timestep,Mass,Lum\n";
+    function buildString(d) {
+        if (d.selected) {
+            data += [d.GrpID,timeMap.get(d.Timestep)[0].step,d.HaloMass,d.lum].join(',') + "\n";
+        }
+        if (d.children) {
+            d.children.forEach(function(f) {buildString(f);});
         }
     }
+    buildString(root);
 
-    function updateTree(grp) {
-        var halo = haloMap.get(grp);
-        root = halo.root;
-        nodesMap = halo.nodes;
-        linksMap = halo.links;
+    // var download = document.createElement('a');
+    // download.setAttribute('href', 'data:text/csv;charset=utf-8,' + encodeURIComponent(data));
+    // download.setAttribute('download', 'selectedHalos');
+    // download.click();
 
-        //exit current tree
-        var node = graph.selectAll("g.node")
-        .data([]);
-        //transition exiting nodes
-        var nodeExit = node.exit().transition()
-        .duration(duration)
-        .attr("transform", function(d) { return "translate(" + root.x0 + "," + root.y0 + ")"; })
-        .remove();
+    var myWindow = window.open("data:text/plain," + encodeURIComponent(data), "_blank", "width=500,height=500,top=100,left=100");
+    myWindow.focus();
+}
 
-        nodeExit.select("circle")
-        .attr("r", 1e-6);
 
-        nodeExit.select("text")
-        .style("fill-opacity", 1e-6);
+function brushedMass() {    
+    //LUMINOSITYluminosityCheck();
+    if(brushMass.extent()[0] != brushMass.extent()[1] )
+    {
+        clearSelected();
+        var expFormatText = function (x) {return x.toExponential(3);};
+        textBoxMinMass.value = expFormatText(Math.pow(10,brushMass.extent()[0]));
+        textBoxMaxMass.value = expFormatText(Math.pow(10,brushMass.extent()[1]));
+    }
+    else{
+    textBoxMinMass.value = 0;
+    textBoxMaxMass.value = 0;
+    }
+    
+    
+    var oldDuration = duration;
+    //set duration to 0 so the color change is automatic
+    duration = 0;
+    update(root);
+    duration = oldDuration;
+}
 
-        //exit link
-        var link = graph.selectAll("path.link")
-        .data([]);
+function brushedParticle(){
+    //LUMINOSITYluminosityCheck();
+    if(brushParticle.extent()[0] !=  brushParticle.extent()[1])
+    {
+        clearSelected();
+        var expFormatText = function (x) {return x.toExponential(3);};
+        textBoxMinParticle.value = expFormatText(Math.pow(10,brushParticle.extent()[0]));
+        textBoxMaxParticle.value = expFormatText(Math.pow(10,brushParticle.extent()[1]));
+    } else {
+        textBoxMinParticle.value = 0;
+        textBoxMaxParticle.value = 0;
+    }
 
-        // Transition exiting nodes
-        link.exit().transition()
-        .duration(duration)
-        .attr("d", function(d) {
-         var o = {x: root.x0, y: root.y0};
-         return diagonal({source: o, target: o});
-     })
-        .remove();
-        setTimeout(function() {
-            update(root);
-        }, 750);
+    var oldDuration = duration;
+    //set duration to 0 so the color change is automatic
+    duration = 0;
+    update(root);
+    duration = oldDuration;
+}
 
+buttonMass.on("click", function(d) {
+   var high = +textboxMaxMass.value;
+   var low = +textboxMinMass.value;
+   if(low < minMass || low > high)
+   {
+        low = minMass;
+   }
+   if(high > maxMass || high < low)
+   {
+        high = maxMass;
+   }
+   svgBrushMass
+        .select(".xbrush")
+        .transition()
+        .call(brushMass.extent([getBaseLog(10, low), getBaseLog(10, high)]));
+    brushedMass();
+});
+
+buttonParticle.on("click", function(d) {
+   var high = +textboxMaxParticle.value;
+   var low = +textboxMinParticle.value;
+   if(low < minParticle || low > high)
+   {
+        low = minParticle;
+   }
+   if(high > maxParticle || high < low)
+   {
+        high = maxParticle;
+   }
+   svgBrushParticle
+        .select(".xbrush")
+        .transition()
+        .call(brushParticle.extent([getBaseLog(10, low), getBaseLog(10, high)]));
+    brushedParticle();
+
+});
+
+function luminosityCheck()
+{
+    if (checkBoxToggleLuminosity.checked)
+    {
+      checkBoxToggleLuminosity.checked = false;
+    }
+}
+
+function toggleGraphs() {
+       var initial = checkBoxToggleLuminosity.checked; //if luminosity is on, get it back at the end
+       svgBrushMass.select(".xbrush").call(brushMass.clear());
+       svgBrushParticle.select(".xbrush").call(brushParticle.clear());
+       brushedMass();
+       brushedParticle();
+       $('#panelContent').toggle();
+       if(initial)
+       {
+       checkBoxToggleLuminosity.checked = true;
+       toggleLuminosity();
+       }
+};
+
+function toggleTooltips() {
+    if(checkBoxToggleTooltips.checked)
+    {
+      d3.selectAll(".d3-tip").remove();
+    }
+    else{
+      svg.call(tip_n);
+      svg.call(tip_s);
+      svg.call(tip_e);
+      svg.call(tip_w);
+    }
+};
+
+function toggleLuminosity() {
+    if(checkBoxToggleLuminosity.checked)
+    {
+       svgBrushMass.select(".xbrush").call(brushMass.clear());
+       svgBrushParticle.select(".xbrush").call(brushParticle.clear());
+       textBoxMinParticle.value = 0;
+       textBoxMaxParticle.value = 0;
+       textBoxMinMass.value = 0;
+       textBoxMaxMass.value = 0;
+       
+       var nodesStroke = d3.selectAll("circle.visible")
+            .transition()
+            .style("stroke", "white")
+            .style("stroke-width", "1")
+            .style("opacity", function(d)
+            {
+                if(d.lum == 0)
+            {
+                return "0";
+            }
+            else
+            {
+                return ".07";
+            }
+            })
+            .attr("r",  10); //slightly smaller due to blur of circle.shadow
+       
+
+        var nodesShadow = d3.selectAll("circle.shadow")
+            .transition()
+            .filter(function(d) {if(d.lum !=0) {return d;}})
+            .style("fill", "white")
+            .attr("r",  13)
+            .style("opacity", function (d) 
+            {
+                return lumScale(d.lum);
+            })
+            .style("filter", "url(#blur)");
+                         
+                         
+        var otherShade = d3.selectAll("circle.shadow")
+            .filter(function(d) {if(d.lum ==0) {return d;}})
+            .style("fill", "black")
+            .style("opacity", 1)
+            .attr("r",  10);
+        
+        
+                            
+        var edges = d3.selectAll("path.link")
+            .transition()
+            .style("stroke", "gray")
+            .style("opacity", ".3");
         
     }
-
-    function brushed() {
-        //console.log(brush.extent(), "vs", brushParticle.extent());
-        //console.log(brush.empty(), "vs", brushParticle.empty());
+    else {
         update(root);
     }
+};
+
+function tipHtml(d) {
+    var color = "black";
+    return "Halo Group: <span style='color:" + color +"'>"  + d.GrpID + "</span><br/>" 
+          + "Halo Mass: <span style='color:" + color +"'>" + (+d.HaloMass).toExponential(3) + "</span><br/>" 
+          + "Total Particles: <span style='color:" + color +"'>" + d.TotalParticles + "</span><br/>"
+          + "Total Dark Particles: <span style='color:" + color +"'>" + d.TotalDarkParticles + "</span><br/>"
+          + "Total Luminosity: <span style='color:" + color +"'>" + (+d.lum).toExponential(3) + "</span><br/>";
+    // return "Halo Group: <span style='color:" + color +"'>"  + d.GrpID + "</span><br/>" 
+    //       + "Total Mass: <span style='color:" + color +"'>" + (+d.HaloMass).toExponential(3) + "</span><br/>" 
+    //       + "Stelar Mass: <span style='color:" + color +"'>" + d.StelarMass + "</span><br/>"
+    //       + "Total Particles: <span style='color:" + color +"'>" + d.TotalParticles + "</span><br/>"
+    //       + "Gas Mass: <span style='color:" + color +"'>" + d.GasMass + "</span><br/>"
+    //       + "Luminosity: <span style='color:" + color +"'>" + (+d.lum).toExponential(3) + "</span><br/>";
+}
+
+function textBoxGroupEnter() {
+    var val = document.getElementById("textBoxGroup").value;
+    if (val && haloMap.keys().indexOf(val) == -1) {
+        alert("That group is not in this data");
+    } else if(val != root.GrpID) {
+        changeTree(val);
+    }
+}
+
+function populateSlider() {
+    var curGrp = root.GrpID;
+    var similarities = haloMap.get(curGrp).similarities;
+    current = similarities[0];
+    similarities = similarities.slice(1,similarities.length);
+    
+    var currentImage = d3.select("#sliderContent")
+        .append("div")
+        .attr("id", "current")
+        .attr("class", "viewer");
+    
+    currentImage.append("div")
+        .attr("class", "spacing")
+        .text("cur")
+        .style("opacity", 0);
+    
+    currentImage = currentImage.append("div")
+        .selectAll(".item")
+        .data([current])
+        .enter()
+        .append("div")
+        .attr("class", "item");
+
+    currentImage.append("img")
+        .attr("src", function(d) {
+            return "./../images/ascotLogo.png";
+            //return "images/halo_small"+d.to_Group+".png";
+        });
+
+    currentImage.append("form")
+        .text("Current Group: ")
+        .attr("onSubmit", "textBoxGroupEnter(); return false;")
+        .append("input")
+        .attr("id", "textBoxGroup")
+        .style("width", "25px")
+        .attr("value", function(d) { return d.to_Group; });
+
+
+    var slider = d3.select("#sliderContent")
+        .append("div")
+        .attr("class", "viewer")
+        .attr("id", "similarities");
+    
+    slider.append("div")
+        .attr("class", "spacing")
+        .text("sim")
+        .style("opacity", "0");
+
+    slider = slider.append("div")
+        .attr("class", "content-conveyor")
+        .selectAll(".item")
+        .data(similarities) //don't specify key function because was to be joined on index
+        .enter()
+        .append("div")
+        .attr("class", "item");
+
+    slider.append("a")
+        .attr("href", "#")
+        .on("click", function(d) { changeTree(d.to_Group); })
+        .append("img")
+        .attr("src", function(d) {
+            return "./../images/ascotLogo.png";
+            //return "images/halo_small"+d.to_Group+".png";
+        });
+
+    slider.append("div")
+        .attr("class", "text")
+        .text(function(d) { return "Group: " + d.to_Group; });
+
+    activateSlider();
+}
+
+function changeSlider() {
+    var curGrp = root.GrpID;
+    var similarities = haloMap.get(curGrp).similarities;
+    current = similarities[0];
+    similarities = similarities.slice(1,similarities.length);
+
+    var currentImage = d3.select("#sliderContent")
+        .select("#current")
+        .selectAll(".item")
+        .data([current]);
+
+    currentImage.select("img")
+        .attr("src", function(d) {
+            return "./../images/ascotLogo.png";
+        });
+
+    document.getElementById("textBoxGroup").value = current.to_Group;
+
+    var slider = d3.select("#sliderContent")
+        .select(".content-conveyor")
+        .selectAll(".item")
+        .data(similarities);
+
+    slider.select("a")
+        .on("click", function(d) { changeTree(d.to_Group); })
+        .select("img")
+        .attr("src", function(d) {
+            return "./../images/ascotLogo.png";
+        }); //./../images/mergerTree/Legend.jpg return "images/halo_small"+d.to_Group+".png";
+
+    slider.select(".text")
+        .text(function(d) { return "Group: " + d.to_Group; });
+        
+}
+
+function activateSlider() {
+    //vars
+    var current = $("#current", $("#sliderContent")),
+    similar = $("#similarHalo", $("#sliderContainer")),
+    viewer = $("#similarities", $("#sliderContent")),
+    conveyor = $(".content-conveyor", $("#sliderContent")),
+    item = $(".item", $("#similarities"));
+    //console.log(item.length);
+    //set width current
+    current.css("width", parseInt(item.css("width")));
+    //sets text left position
+    similar.css("left", parseInt(item.css("width"))+8);
+    //set width viewer
+    viewer.css("width", parseInt($("#sliderContent").css("width")) - 5 - parseInt(item.css("width")));
+    /*viewer.css("margin-left", parseInt(item.css("width")));*/
+    //set length of conveyor
+    conveyor.css("width", item.length * parseInt(item.css("width")));
+    //console.log(item.length, item.css("width"), ("#similarities", $("#sliderContent")).css("width"));
+    //config
+    // var sliderOpts = {
+    //     max: (item.length * parseInt(item.css("width"))) - parseInt($("#similarities", $("#sliderContent")).css("width")),
+    //     slide: function(e, ui) { 
+    //         conveyor.css("left", "-" + ui.value + "px");
+    //     }
+    // };
+    // $("#slider").css("width", parseInt(viewer.css("width")));
+    // $("#slider").css("left", parseInt(item.css("width"))+10);
+    // //create slider
+    // $("#slider").slider(sliderOpts);
+}
 };
