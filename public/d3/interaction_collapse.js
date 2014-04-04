@@ -1,4 +1,4 @@
-var displayMergerTree = function(raw_links, raw_nodes, selectedGroup) {
+function displayMergerTree(raw_links, raw_nodes, selectedGroup) {
 
 //var doc = document.documentElement;
 //var clientWidth = Math.min(doc.clientWidth-50, 1600);
@@ -64,6 +64,7 @@ var zoom = d3.behavior.zoom();
 var nodeMouseDown = false;
 var tooltipShown = false;
 var tooltipEdgesShown = false;
+var graphSelected = false;
 
 //Generate tool tips
 var tip_n = d3.tip()
@@ -149,9 +150,9 @@ var graph = svg.select(".graph");
 //******************************SET UP LEFT PANEL
 //scales for both charts
 var xHeight = clientHeight/6-80; //used for various sections of the graph/areas
-var x = d3.scale.linear().range([0, clientWidth/3-130]);
+var x = d3.scale.linear().range([0, clientWidth/3-50]);
 var y = d3.scale.linear().range([xHeight, 0]);
-var xParticle = d3.scale.linear().range([0, clientWidth/3-130]);
+var xParticle = d3.scale.linear().range([0, clientWidth/3-50]);
 var yParticle = d3.scale.linear().range([xHeight, 0]);
 
 //axes formatting
@@ -188,10 +189,10 @@ var brushParticle = d3.svg.brush()
     
 //adding brushes to panels
 var svgBrushMass = d3.select("#massPanel").append("svg")
-    .attr("width", clientWidth/3-100) //width a bit more b/c of text
+    .attr("width", clientWidth/3-10) //width a bit more b/c of text
     .attr("height", clientHeight/8+20);
 var svgBrushParticle = d3.select("#particlePanel").append("svg")
-    .attr("width", clientWidth/3-100) //width a bit more b/c of text
+    .attr("width", clientWidth/3-10) //width a bit more b/c of text
     .attr("height", clientHeight/8+20);
     
 //transform position to brush 
@@ -204,12 +205,8 @@ var contextParticle = svgBrushParticle.append("g")
 var dataBinMassAllHalos = [];
 var dataBinParticleAllHalos = [];
 
-//******************************LOAD TIME MAP DATA
-d3.csv("./../d3/times.csv", function(error1, raw_times) {
-    timeMap = d3.nest().key(function(d) { return d.db }).map(raw_times, d3.map);
-});
-
 //******************************LOAD DATA
+d3.csv("./../d3/times.csv", function(error1, raw_times) {
 d3.csv("./../d3/similarities.csv", function(error3, raw_sims) {
     //CREATE DATA DEPENDENT VARIABLES
     var maxSharedParticle = 0, minSharedParticle;
@@ -219,7 +216,8 @@ d3.csv("./../d3/similarities.csv", function(error3, raw_sims) {
     minSharedParticle = raw_links[0].sharedParticleCount;
     //LUMINOSITYminLum = raw_nodes[0].lum;
     //LUMINOSITYmaxLum = raw_nodes[0].lum;
-    
+
+    timeMap = d3.nest().key(function(d) { return d.db }).map(raw_times, d3.map);
 
     raw_links.forEach(function(d) {
         maxSharedParticle = Math.max(maxSharedParticle, +d.sharedParticleCount);
@@ -279,9 +277,11 @@ d3.csv("./../d3/similarities.csv", function(error3, raw_sims) {
     //for each HaloID key, had an array of nodes with that key
     //each array will be of length one
     haloMap = d3.map();
+
     var similaritiesMap = d3.nest().key(function(d) { return d.from_Group; }).map(raw_sims, d3.map);
     var tempHaloNodesMap = d3.nest().key(function(d) { return d.NowGroup; }).map(raw_nodes, d3.map);
     var tempHaloLinksMap = d3.nest().key(function(d) { return d.NowGroup; }).map(raw_links, d3.map);
+
     var tempNodesMap, tempLinksMap, tempRoot;
     tempHaloNodesMap.forEach(function(k, v) {
         tempNodesMap = d3.nest().key(function(d) { return d.HaloID; }).map(v, d3.map);
@@ -309,7 +309,6 @@ d3.csv("./../d3/similarities.csv", function(error3, raw_sims) {
     root = halo.root;
     nodesMap = halo.nodes;
     linksMap = halo.links;
-
     haloMassValuesCurrentHalo = [], haloParticleValuesCurrentHalo = [];
     minMassC = maxMass;
     maxMassC = 0;
@@ -486,6 +485,7 @@ d3.csv("./../d3/similarities.csv", function(error3, raw_sims) {
     update(root);
     //start at zoomed out state
 });
+});
 
 function update(source) {
     //compute the new tree layout.
@@ -614,34 +614,34 @@ function update(source) {
         });
             
     //color filters based on brushes
-    var brushExtentMin = Math.pow(10,brushMass.extent()[0]);
-    var brushExtentMax = Math.pow(10,brushMass.extent()[1]);
+    // var brushExtentMin = Math.pow(10,brushMass.extent()[0]);
+    // var brushExtentMax = Math.pow(10,brushMass.extent()[1]);
 
-    var brushExtentMinP = Math.pow(10,brushParticle.extent()[0]);
-    var brushExtentMaxP = Math.pow(10,brushParticle.extent()[1]);
+    // var brushExtentMinP = Math.pow(10,brushParticle.extent()[0]);
+    // var brushExtentMaxP = Math.pow(10,brushParticle.extent()[1]);
 
     counterHaloSelected = 0;
     var otherCount = 0;
     
-    nodeUpdate.selectAll("circle.shadow")
-        .filter(function (d){
-              if((+d.HaloMass >= brushExtentMin) && (+d.HaloMass <= brushExtentMax))
-              {
-                 otherCount = otherCount + 1;
-              }
+    // nodeUpdate.selectAll("circle.shadow")
+    //     .filter(function (d){
+    //           if((+d.HaloMass >= brushExtentMin) && (+d.HaloMass <= brushExtentMax))
+    //           {
+    //              otherCount = otherCount + 1;
+    //           }
             
-            if(
-               (!brushMass.empty() && brushParticle.empty() && ((+d.HaloMass >= brushExtentMin) && (+d.HaloMass <= brushExtentMax))) || //mass brush and conditions
-               (brushMass.empty() && !brushParticle.empty()  && ((d.TotalParticles >= brushExtentMinP) && (d.TotalParticles <= brushExtentMaxP))) || //particle brush and conditions
-               (((+d.HaloMass >= brushExtentMin) && (+d.HaloMass <= brushExtentMax)) && ((d.TotalParticles >= brushExtentMinP) && (d.TotalParticles <= brushExtentMaxP)))) //both selected
-               {
-                 counterHaloSelected = counterHaloSelected + 1;
-                 return d;
-               }
-        })
-        .style("fill", "#E3C937")
-        .style("opacity", ".5")
-        .style("filter", "url(#blur)");
+    //         if(
+    //            (!brushMass.empty() && brushParticle.empty() && ((+d.HaloMass >= brushExtentMin) && (+d.HaloMass <= brushExtentMax))) || //mass brush and conditions
+    //            (brushMass.empty() && !brushParticle.empty()  && ((d.TotalParticles >= brushExtentMinP) && (d.TotalParticles <= brushExtentMaxP))) || //particle brush and conditions
+    //            (((+d.HaloMass >= brushExtentMin) && (+d.HaloMass <= brushExtentMax)) && ((d.TotalParticles >= brushExtentMinP) && (d.TotalParticles <= brushExtentMaxP)))) //both selected
+    //            {
+    //              counterHaloSelected = counterHaloSelected + 1;
+    //              return d;
+    //            }
+    //     })
+    //     .style("fill", "#E3C937")
+    //     .style("opacity", ".5")
+    //     .style("filter", "url(#blur)");
 
     nodeUpdate.selectAll("circle.shadow")
         .filter(function (d){
@@ -748,6 +748,28 @@ function clearSelected() {
     nodesMap.values().forEach(function(d) { d[0].selected = false; });
 }
 
+function updateBrushSelected() {
+    var brushExtentMin = Math.pow(10,brushMass.extent()[0]);
+    var brushExtentMax = Math.pow(10,brushMass.extent()[1]);
+
+    var brushExtentMinP = Math.pow(10,brushParticle.extent()[0]);
+    var brushExtentMaxP = Math.pow(10,brushParticle.extent()[1]);
+    function toggleSelect(d) {
+        if((!brushMass.empty() && brushParticle.empty() && ((+d.HaloMass >= brushExtentMin) && (+d.HaloMass <= brushExtentMax))) || //mass brush and conditions
+        (brushMass.empty() && !brushParticle.empty()  && ((d.TotalParticles >= brushExtentMinP) && (d.TotalParticles <= brushExtentMaxP))) || //particle brush and conditions
+        (((+d.HaloMass >= brushExtentMin) && (+d.HaloMass <= brushExtentMax)) && ((d.TotalParticles >= brushExtentMinP) && (d.TotalParticles <= brushExtentMaxP)))) //both selected
+        {
+            d.selected = true;
+        } else {
+            d.selected = false;
+        }
+        if (d.children) {
+            d.children.forEach(function(f) {toggleSelect(f);});
+        }
+    }
+    toggleSelect(root);
+}
+
 //toggle children on click.
 function click(d) {
     function toggleSelect(d) {
@@ -759,16 +781,19 @@ function click(d) {
     if (d3.event.defaultPrevented) {
         return;
     }
-    if( checkBoxToggleLuminosity.checked) { 
-        checkBoxToggleLuminosity.checked = false;
-    }
+    //LUMINOSITY if( checkBoxToggleLuminosity.checked) { 
+    //     checkBoxToggleLuminosity.checked = false;
+    // }
     if(d3.event.shiftKey) {
+        graphSelected = false;
         clearSelected();
         toggleSelect(d);
         svgBrushMass.select(".xbrush").call(brushMass.clear());
         svgBrushParticle.select(".xbrush").call(brushParticle.clear());
-        brushedMass();
-        brushedParticle();
+        textBoxMinMass.value = 0;
+        textBoxMaxMass.value = 0;
+        textBoxMinParticle.value = 0;
+        textBoxMaxParticle.value = 0;
         var oldDuration = duration;
         //set duration to 0 so the color change is automatic
         duration = 0;
@@ -1037,21 +1062,24 @@ function download() {
 }
 
 
-function brushedMass() {    
+function brushedMass() {
+      
     //LUMINOSITYluminosityCheck();
     if(brushMass.extent()[0] != brushMass.extent()[1] )
     {
-        clearSelected();
+        graphSelected = true;
         var expFormatText = function (x) {return x.toExponential(3);};
         textBoxMinMass.value = expFormatText(Math.pow(10,brushMass.extent()[0]));
         textBoxMaxMass.value = expFormatText(Math.pow(10,brushMass.extent()[1]));
     }
     else{
-    textBoxMinMass.value = 0;
-    textBoxMaxMass.value = 0;
+        if (brushParticle.empty()) {
+            graphSelected = false;
+        }
+        textBoxMinMass.value = 0;
+        textBoxMaxMass.value = 0;
     }
-    
-    
+    updateBrushSelected();
     var oldDuration = duration;
     //set duration to 0 so the color change is automatic
     duration = 0;
@@ -1060,18 +1088,22 @@ function brushedMass() {
 }
 
 function brushedParticle(){
+
     //LUMINOSITYluminosityCheck();
     if(brushParticle.extent()[0] !=  brushParticle.extent()[1])
     {
-        clearSelected();
+        graphSelected = true;
         var expFormatText = function (x) {return x.toExponential(3);};
         textBoxMinParticle.value = expFormatText(Math.pow(10,brushParticle.extent()[0]));
         textBoxMaxParticle.value = expFormatText(Math.pow(10,brushParticle.extent()[1]));
     } else {
+        if (brushMass.empty()) {
+            graphSelected = false;
+        }
         textBoxMinParticle.value = 0;
         textBoxMaxParticle.value = 0;
     }
-
+    updateBrushSelected();
     var oldDuration = duration;
     //set duration to 0 so the color change is automatic
     duration = 0;
@@ -1080,40 +1112,37 @@ function brushedParticle(){
 }
 
 buttonMass.on("click", function(d) {
-   var high = +textboxMaxMass.value;
-   var low = +textboxMinMass.value;
-   if(low < minMass || low > high)
-   {
+    var high = +textboxMaxMass.value;
+    var low = +textboxMinMass.value;
+    if(low < minMass || low > high)
+    {
         low = minMass;
-   }
-   if(high > maxMass || high < low)
-   {
+    }
+    if(high > maxMass || high < low)
+    {
         high = maxMass;
-   }
-   svgBrushMass
-        .select(".xbrush")
+    }
+    svgBrushMass.select(".xbrush")
         .transition()
         .call(brushMass.extent([getBaseLog(10, low), getBaseLog(10, high)]));
     brushedMass();
 });
 
 buttonParticle.on("click", function(d) {
-   var high = +textboxMaxParticle.value;
-   var low = +textboxMinParticle.value;
-   if(low < minParticle || low > high)
-   {
+    var high = +textboxMaxParticle.value;
+    var low = +textboxMinParticle.value;
+    if(low < minParticle || low > high)
+    {
         low = minParticle;
-   }
-   if(high > maxParticle || high < low)
-   {
+    }
+    if(high > maxParticle || high < low)
+    {
         high = maxParticle;
-   }
-   svgBrushParticle
-        .select(".xbrush")
+    }
+    svgBrushParticle.select(".xbrush")
         .transition()
         .call(brushParticle.extent([getBaseLog(10, low), getBaseLog(10, high)]));
     brushedParticle();
-
 });
 
 function luminosityCheck()
@@ -1125,29 +1154,39 @@ function luminosityCheck()
 }
 
 function toggleGraphs() {
-       var initial = checkBoxToggleLuminosity.checked; //if luminosity is on, get it back at the end
-       svgBrushMass.select(".xbrush").call(brushMass.clear());
-       svgBrushParticle.select(".xbrush").call(brushParticle.clear());
-       brushedMass();
-       brushedParticle();
-       $('#panelContent').toggle();
-       if(initial)
-       {
-       checkBoxToggleLuminosity.checked = true;
-       toggleLuminosity();
-       }
+    //LUMINOSITY var initial = checkBoxToggleLuminosity.checked; //if luminosity is on, get it back at the end
+    svgBrushMass.select(".xbrush").call(brushMass.clear());
+    svgBrushParticle.select(".xbrush").call(brushParticle.clear());
+    textBoxMinParticle.value = 0;
+    textBoxMaxParticle.value = 0;
+    textBoxMinMass.value = 0;
+    textBoxMaxMass.value = 0;
+    if (graphSelected) {
+        graphSelected = false;
+        clearSelected();
+        var oldDuration = duration;
+        duration = 0;
+        update(root);
+        duration = oldDuration;
+    }
+    $('#panelContent').toggle();
+    //LUMINOSITY if(initial)
+    // {
+    //     checkBoxToggleLuminosity.checked = true;
+    //     toggleLuminosity();
+    // }
 };
 
 function toggleTooltips() {
     if(checkBoxToggleTooltips.checked)
     {
-      d3.selectAll(".d3-tip").remove();
+        d3.selectAll(".d3-tip").remove();
     }
     else{
-      svg.call(tip_n);
-      svg.call(tip_s);
-      svg.call(tip_e);
-      svg.call(tip_w);
+        svg.call(tip_n);
+        svg.call(tip_s);
+        svg.call(tip_e);
+        svg.call(tip_w);
     }
 };
 
@@ -1259,7 +1298,7 @@ function populateSlider() {
 
     currentImage.append("img")
         .attr("src", function(d) {
-            return "./../images/ascotLogo.png";
+            return "./../images/mergerTree/halo_small"+d.to_Group+".png";
             //return "images/halo_small"+d.to_Group+".png";
         });
 
@@ -1295,7 +1334,7 @@ function populateSlider() {
         .on("click", function(d) { changeTree(d.to_Group); })
         .append("img")
         .attr("src", function(d) {
-            return "./../images/ascotLogo.png";
+            return "./../images/mergerTree/halo_small"+d.to_Group+".png";
             //return "images/halo_small"+d.to_Group+".png";
         });
 
@@ -1319,7 +1358,7 @@ function changeSlider() {
 
     currentImage.select("img")
         .attr("src", function(d) {
-            return "./../images/ascotLogo.png";
+            return "./../images/mergerTree/halo_small"+d.to_Group+".png";
         });
 
     document.getElementById("textBoxGroup").value = current.to_Group;
@@ -1333,7 +1372,7 @@ function changeSlider() {
         .on("click", function(d) { changeTree(d.to_Group); })
         .select("img")
         .attr("src", function(d) {
-            return "./../images/ascotLogo.png";
+            return "./../images/mergerTree/halo_small"+d.to_Group+".png";
         }); //./../images/mergerTree/Legend.jpg return "images/halo_small"+d.to_Group+".png";
 
     slider.select(".text")
@@ -1371,4 +1410,10 @@ function activateSlider() {
     // //create slider
     // $("#slider").slider(sliderOpts);
 }
+
+//assign merger tree object variable functions
+this.download = download;
+this.resetTree = resetTree;
+this.toggleGraphs = toggleGraphs;
+this.toggleTooltips = toggleTooltips;
 };

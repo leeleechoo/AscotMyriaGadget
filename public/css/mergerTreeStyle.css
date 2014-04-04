@@ -49,7 +49,11 @@ rect {
 
 #topContainer {
   font-family:arial;
-  font-size:15px;
+  font-size:12px;
+}
+
+#topContainer input{
+  top: 5px;
 }
 
 #svgContent {
@@ -58,7 +62,7 @@ rect {
 
 #panelContent {
   background-color: white;
-  font-size: 13px;
+  font-size: 11px;
   font-family: arial;
 }
 
@@ -133,7 +137,9 @@ svgBrush {
   
 }
 #panelContent input {
-  width: 150px;
+  width: 60px;
+  font-size:10px;
+  margin: 3px 0px;
 }
 .button {
   background-color:darkblue;
@@ -142,7 +148,7 @@ svgBrush {
   color:#ffffff;
   font-family:arial;
   font-size:12px;
-  padding: 8px 5px;
+  padding: 5px 6px;
   margin: 0px;
 }
 
