@@ -1,2 +1,2 @@
-dashboard.js
+For instructions, open public/doc/index.html in a web browser to view documentation. After installing, run the ascot gadget by going to the AscoMyriaGadget folder and run sudo node server.js.
 

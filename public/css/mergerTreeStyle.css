@@ -223,8 +223,10 @@ svgBrush {
     text-align:center;
 
 }
-.item img {
-    padding:0px;
+
+.item svg {
+    width: 150px;
+    height: 100px;
 }
 
 .item a:hover {

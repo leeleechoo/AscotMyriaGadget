@@ -3,7 +3,7 @@ function displayMergerTree(raw_links, raw_nodes, selectedGroup) {
 //var doc = document.documentElement;
 //var clientWidth = Math.min(doc.clientWidth-50, 1600);
 //var clientHeight = doc.clientHeight;
-var clientWidth = 1040;
+var clientWidth = 1010;
 var clientHeight = 730;
 var margin = {top: 60, right: 20, bottom: 20, left: 20},
 width = clientWidth - margin.right - margin.left,
@@ -303,7 +303,7 @@ d3.csv("./../d3/similarities.csv", function(error3, raw_sims) {
         tempRoot.y0 = 0;
         haloMap.set(k, {root: tempRoot, nodes: tempNodesMap, links: tempLinksMap, similarities: similaritiesMap.get(k)});
     });
-    
+    console.log(haloMap);
     //default group
     var halo = haloMap.get(selectedGroup);
     root = halo.root;
@@ -1273,6 +1273,13 @@ function textBoxGroupEnter() {
     }
 }
 
+function createThumb(d, i) {
+    //clear html so refresh the existing thumbnail
+    console.log(d, haloMap.get(80));
+    d3.select(this).html([]);
+    createThumbnailTree(d3.select(this), parseInt($("svg", $("#sliderContent")).css("width")), parseInt($("svg", $("#sliderContent")).css("height")), haloMap.get(80),linkScale.domain(), maxTime);
+}
+
 function populateSlider() {
     var curGrp = root.GrpID;
     var similarities = haloMap.get(curGrp).similarities;
@@ -1296,11 +1303,15 @@ function populateSlider() {
         .append("div")
         .attr("class", "item");
 
-    currentImage.append("img")
-        .attr("src", function(d) {
-            return "./../images/mergerTree/halo_small"+d.to_Group+".png";
-            //return "images/halo_small"+d.to_Group+".png";
-        });
+    currentImage
+        .append("svg")
+        .each(createThumb);
+
+    // .append("img")
+    //     .attr("src", function(d) {
+    //         return "./../images/mergerTree/halo_small"+d.to_Group+".png";
+    //         //return "images/halo_small"+d.to_Group+".png";
+    //     });
 
     currentImage.append("form")
         .text("Current Group: ")
@@ -1332,11 +1343,8 @@ function populateSlider() {
     slider.append("a")
         .attr("href", "#")
         .on("click", function(d) { changeTree(d.to_Group); })
-        .append("img")
-        .attr("src", function(d) {
-            return "./../images/mergerTree/halo_small"+d.to_Group+".png";
-            //return "images/halo_small"+d.to_Group+".png";
-        });
+        .append("svg")
+        .each(createThumb);
 
     slider.append("div")
         .attr("class", "text")
@@ -1356,10 +1364,8 @@ function changeSlider() {
         .selectAll(".item")
         .data([current]);
 
-    currentImage.select("img")
-        .attr("src", function(d) {
-            return "./../images/mergerTree/halo_small"+d.to_Group+".png";
-        });
+    currentImage.select("svg")
+        .each(createThumb);
 
     document.getElementById("textBoxGroup").value = current.to_Group;
 
@@ -1370,10 +1376,8 @@ function changeSlider() {
 
     slider.select("a")
         .on("click", function(d) { changeTree(d.to_Group); })
-        .select("img")
-        .attr("src", function(d) {
-            return "./../images/mergerTree/halo_small"+d.to_Group+".png";
-        }); //./../images/mergerTree/Legend.jpg return "images/halo_small"+d.to_Group+".png";
+        .select("svg")
+        .each(createThumb);
 
     slider.select(".text")
         .text(function(d) { return "Group: " + d.to_Group; });

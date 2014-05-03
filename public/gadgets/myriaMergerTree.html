@@ -32,8 +32,8 @@
     <div id="mergerTree">
       <div id="mergerTreeOptions">
         <label>Group: </label>
-        <input id="mergerTreeGroup" onkeydown="if (event.keyCode == 13) document.getElementById('mQueryButton').click()"></input>
-        <button id="mQueryButton" onclick="tryFormAndSendMergerTreeQuery()">Execute</button>
+        <input id="mergerTreeGroup" onkeydown="if (event.keyCode == 13) document.getElementById('mQueryButton').click()" style="margin:0px; padding:4px"></input>
+        <button id="mQueryButton" onclick="tryFormAndSendMergerTreeQuery()" style="padding:4px;">Execute</button>
         <span id="error"></span>
       </div>
       <div id="resultLoading"></div>
@@ -140,6 +140,7 @@
   <script src="/util.js" type="text/javascript"></script>
   <script type="text/javascript" src="/wcs.js"></script>
   <script src="http://labratrevenge.com/d3-tip/javascripts/d3.tip.v0.6.3.js"></script>
+  <script src="../d3/tree_thumbnails.js"></script>
   <script src="../d3/interaction_collapse.js"></script>
   <script type="text/javascript">
 
@@ -234,6 +235,7 @@
       data1.sort(function(obj1, obj2) {
         return obj1.TimeStep - obj2.TimeStep;
       });
+      //displayMergerTree is in d3/interaction_collapse.js
       mergerTree = new displayMergerTree(data2, data1, selectedGroup);
     };
 
@@ -298,7 +300,7 @@
     }
 
     var resetTree = function() {
-      mergerTree.resertTree();
+      mergerTree.resetTree();
     }
 
     var toggleGraphs = function() {
